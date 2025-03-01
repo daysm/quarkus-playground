@@ -78,6 +78,20 @@
 #   accessed directly. (example: "foo.example.com,bar.example.com")
 #
 ###
+
+# Build stage
+FROM registry.access.redhat.com/ubi9/openjdk-21:1.21 AS build
+
+WORKDIR /app
+COPY gradlew .
+COPY build.gradle .
+COPY settings.gradle .
+COPY gradle.properties .
+COPY ./src ./src
+
+RUN ./gradlew build
+
+# Image stage
 FROM registry.access.redhat.com/ubi9/openjdk-21:1.21
 
 ENV LANGUAGE='en_US:en'
