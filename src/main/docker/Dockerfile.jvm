@@ -83,11 +83,11 @@
 FROM registry.access.redhat.com/ubi9/openjdk-21:1.21 AS build
 
 WORKDIR /app
-COPY gradlew .
-COPY build.gradle .
-COPY settings.gradle .
-COPY gradle.properties .
-COPY ./src ./src
+COPY --chown=185 gradlew .
+COPY --chown=185 build.gradle .
+COPY --chown=185 settings.gradle .
+COPY --chown=185 gradle.properties .
+COPY --chown=185 ./src ./src
 
 RUN ./gradlew build
 
@@ -98,10 +98,10 @@ ENV LANGUAGE='en_US:en'
 
 
 # We make four distinct layers so if there are application changes the library layers can be re-used
-COPY --chown=185 build/quarkus-app/lib/ /deployments/lib/
-COPY --chown=185 build/quarkus-app/*.jar /deployments/
-COPY --chown=185 build/quarkus-app/app/ /deployments/app/
-COPY --chown=185 build/quarkus-app/quarkus/ /deployments/quarkus/
+COPY --from=build --chown=185 build/quarkus-app/lib/ /deployments/lib/
+COPY --from=build --chown=185 build/quarkus-app/*.jar /deployments/
+COPY --from=build --chown=185 build/quarkus-app/app/ /deployments/app/
+COPY --from=build --chown=185 build/quarkus-app/quarkus/ /deployments/quarkus/
 
 EXPOSE 8080
 USER 185
