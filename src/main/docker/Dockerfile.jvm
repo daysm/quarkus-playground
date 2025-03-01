@@ -83,12 +83,11 @@
 FROM registry.access.redhat.com/ubi9/openjdk-21:1.21 AS build
 
 WORKDIR /app
-COPY --chown=185 gradlew .
-COPY --chown=185 build.gradle .
-COPY --chown=185 settings.gradle .
-COPY --chown=185 gradle.properties .
-COPY --chown=185 ./src ./src
 
+# Copy the entire project context
+COPY . .
+
+# Run the build
 RUN ./gradlew build
 
 # Image stage
@@ -96,12 +95,11 @@ FROM registry.access.redhat.com/ubi9/openjdk-21:1.21
 
 ENV LANGUAGE='en_US:en'
 
-
 # We make four distinct layers so if there are application changes the library layers can be re-used
-COPY --from=build --chown=185 build/quarkus-app/lib/ /deployments/lib/
-COPY --from=build --chown=185 build/quarkus-app/*.jar /deployments/
-COPY --from=build --chown=185 build/quarkus-app/app/ /deployments/app/
-COPY --from=build --chown=185 build/quarkus-app/quarkus/ /deployments/quarkus/
+COPY --from=build --chown=185 /app/build/quarkus-app/lib/ /deployments/lib/
+COPY --from=build --chown=185 /app/build/quarkus-app/*.jar /deployments/
+COPY --from=build --chown=185 /app/build/quarkus-app/app/ /deployments/app/
+COPY --from=build --chown=185 /app/build/quarkus-app/quarkus/ /deployments/quarkus/
 
 EXPOSE 8080
 USER 185
@@ -109,4 +107,3 @@ ENV JAVA_OPTS_APPEND="-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=or
 ENV JAVA_APP_JAR="/deployments/quarkus-run.jar"
 
 ENTRYPOINT [ "/opt/jboss/container/java/run/run-java.sh" ]
-
