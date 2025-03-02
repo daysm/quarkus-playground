@@ -87,6 +87,10 @@ WORKDIR /app
 # Copy the entire project context
 COPY . .
 
+# Debug
+RUN ls -lah
+RUN ls -lah ..
+
 # Run the build
 RUN ./gradlew build
 
