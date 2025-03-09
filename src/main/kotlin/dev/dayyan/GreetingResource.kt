@@ -1,5 +1,6 @@
 package dev.dayyan
 
+import jakarta.transaction.Transactional
 import jakarta.ws.rs.GET
 import jakarta.ws.rs.Path
 import jakarta.ws.rs.Produces
@@ -11,8 +12,14 @@ class GreetingResource (private val service: GreetingService) {
 
     @GET
     @Path("/greeting/{name}")
+    @Transactional
     @Produces(MediaType.TEXT_PLAIN)
-    fun greeting(name: String): String = service.greeting(name)
+    fun greeting(name: String): String {
+        val greetedPerson = GreetedPerson()
+        greetedPerson.name = name
+        greetedPerson.persist()
+        return service.greeting(name)
+    }
 
     @GET
     @Produces(MediaType.TEXT_PLAIN)

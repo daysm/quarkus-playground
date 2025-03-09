@@ -1,9 +1,15 @@
 # quarkus-playground
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+## Testcontainers and Colima
+Ensure you have started Colima like this: `colima start --network-address`
+Setting the below environment variables enables Testcontainers to find the Docker environment provided by Colima.
+I use direnv and place the below snippet in an .envrc file in the project.
 
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
-
+```
+export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
+export TESTCONTAINERS_HOST_OVERRIDE=$(colima ls -j | jq -r '.address')
+export DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock"
+```
 ## Running the application in dev mode
 
 You can run your application in dev mode that enables live coding using:

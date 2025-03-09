@@ -10,7 +10,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
 @QuarkusTest
-class GreetingResourceTest {
+class GreetedPersonResourceTest {
 
     private val client = HttpClient.newHttpClient()
 
