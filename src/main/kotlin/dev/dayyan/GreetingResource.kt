@@ -13,9 +13,6 @@ class GreetingResource(private val service: GreetingService) {
     @Transactional
     @Produces(MediaType.TEXT_PLAIN)
     fun greeting(name: String): String {
-        val greetedPerson = GreetedPerson()
-        greetedPerson.name = name
-        greetedPerson.persist()
         return service.greeting(name)
     }
 
