@@ -39,3 +39,9 @@ nb-configuration.xml
 /.quarkus/cli/plugins/
 # TLS Certificates
 .certs/
+
+# Environment variables
+.envrc
+
+# Repomix
+repomix-output.txt
