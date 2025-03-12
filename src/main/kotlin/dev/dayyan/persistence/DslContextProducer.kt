@@ -1,9 +1,11 @@
 package dev.dayyan.persistence
 
 import jakarta.enterprise.context.RequestScoped
-import jakarta.ws.rs.Produces
+import jakarta.enterprise.inject.Produces
+import jakarta.inject.Inject
 import org.jooq.Configuration
 import org.jooq.DSLContext
+import org.jooq.SQLDialect
 import org.jooq.conf.RenderNameCase
 import org.jooq.conf.RenderQuotedNames
 import org.jooq.conf.Settings
@@ -11,32 +13,30 @@ import org.jooq.impl.DSL
 import org.jooq.impl.DefaultConfiguration
 import javax.sql.DataSource
 
-class DslContextProducer(
-    private val dataSource: DataSource,
-) {
-    @get:RequestScoped
-    @get:Produces
-    val dslContext: DSLContext
-        get() {
-            try {
-                return DSL.using(configuration)
-            } catch (e: Exception) {
-                throw RuntimeException(e)
-            }
-        }
+class DslContextProducer {
+    // IntelliJ mistakenly claims that there is no bean that matches injection point
+    @Inject
+    private lateinit var dataSource: DataSource
 
-    private val configuration: Configuration
-        get() =
-            DefaultConfiguration()
-                .set(dataSource)
-                .set(
-                    Settings()
-                        .withExecuteLogging(true)
-                        .withRenderFormatted(true)
-                        .withRenderCatalog(false)
-                        .withRenderSchema(false)
-                        .withMaxRows(Int.MAX_VALUE)
-                        .withRenderQuotedNames(RenderQuotedNames.EXPLICIT_DEFAULT_UNQUOTED)
-                        .withRenderNameCase(RenderNameCase.LOWER_IF_UNQUOTED),
-                )
+    @Produces
+    @RequestScoped
+    fun getDslContext(): DSLContext {
+        return DSL.using(getConfiguration())
+    }
+
+    private fun getConfiguration(): Configuration {
+        return DefaultConfiguration()
+            .set(dataSource)
+            .set(SQLDialect.POSTGRES)
+            .set(
+                Settings()
+                    .withExecuteLogging(true)
+                    .withRenderFormatted(true)
+                    .withRenderCatalog(false)
+                    .withRenderSchema(false)
+                    .withMaxRows(Integer.MAX_VALUE)
+                    .withRenderQuotedNames(RenderQuotedNames.EXPLICIT_DEFAULT_UNQUOTED)
+                    .withRenderNameCase(RenderNameCase.LOWER_IF_UNQUOTED),
+            )
+    }
 }
