@@ -5,8 +5,8 @@ import jakarta.inject.Inject
 import jakarta.transaction.Transactional
 import org.assertj.core.api.Assertions.assertThat
 import org.jooq.DSLContext
-import org.jooq.generated.tables.Authors
-import org.jooq.generated.tables.Books
+import org.jooq.generated.tables.Author
+import org.jooq.generated.tables.Book
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -26,22 +26,22 @@ class BookRepositoryTest {
     @Transactional
     fun setup() {
         // Clean up test data from previous runs
-        dsl.deleteFrom(Books.BOOKS)
-            .where(Books.BOOKS.ID.ge(100))
+        dsl.deleteFrom(Book.BOOK)
+            .where(Book.BOOK.ID.ge(100))
             .execute()
 
         // Make sure we have a test author to reference
         val authorExists =
             dsl.fetchExists(
-                dsl.selectFrom(Authors.AUTHORS)
-                    .where(Authors.AUTHORS.ID.eq(1)),
+                dsl.selectFrom(Author.AUTHOR)
+                    .where(Author.AUTHOR.ID.eq(1)),
             )
 
         if (!authorExists) {
-            dsl.insertInto(Authors.AUTHORS)
-                .set(Authors.AUTHORS.ID, 1)
-                .set(Authors.AUTHORS.FIRST_NAME, "Test")
-                .set(Authors.AUTHORS.LAST_NAME, "Author")
+            dsl.insertInto(Author.AUTHOR)
+                .set(Author.AUTHOR.ID, 1)
+                .set(Author.AUTHOR.FIRST_NAME, "Test")
+                .set(Author.AUTHOR.LAST_NAME, "Author")
                 .execute()
         }
     }
@@ -50,8 +50,8 @@ class BookRepositoryTest {
     @Transactional
     fun tearDown() {
         // Clean up our test data
-        dsl.deleteFrom(Books.BOOKS)
-            .where(Books.BOOKS.ID.ge(100))
+        dsl.deleteFrom(Book.BOOK)
+            .where(Book.BOOK.ID.ge(100))
             .execute()
     }
 
@@ -81,8 +81,8 @@ class BookRepositoryTest {
 
         // Verify in database
         val fromDb =
-            dsl.selectFrom(Books.BOOKS)
-                .where(Books.BOOKS.ID.eq(id))
+            dsl.selectFrom(Book.BOOK)
+                .where(Book.BOOK.ID.eq(id))
                 .fetchOne()
 
         assertThat(fromDb).isNotNull
@@ -94,12 +94,12 @@ class BookRepositoryTest {
     fun testFindById() {
         // Given - insert directly with DSL
         val id = testId++
-        dsl.insertInto(Books.BOOKS)
-            .set(Books.BOOKS.ID, id)
-            .set(Books.BOOKS.TITLE, "Test Book Find")
-            .set(Books.BOOKS.DESCRIPTION, "Test Description for Find")
-            .set(Books.BOOKS.PUBLISHED_YEAR, 2023)
-            .set(Books.BOOKS.AUTHOR_ID, 1)
+        dsl.insertInto(Book.BOOK)
+            .set(Book.BOOK.ID, id)
+            .set(Book.BOOK.TITLE, "Test Book Find")
+            .set(Book.BOOK.DESCRIPTION, "Test Description for Find")
+            .set(Book.BOOK.PUBLISHED_YEAR, 2023)
+            .set(Book.BOOK.AUTHOR_ID, 1)
             .execute()
 
         // When
