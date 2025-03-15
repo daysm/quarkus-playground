@@ -3,8 +3,8 @@ package dev.dayyan.persistence
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.transaction.Transactional
 import org.jooq.DSLContext
-import org.jooq.generated.tables.Books
-import org.jooq.generated.tables.records.BooksRecord
+import org.jooq.generated.tables.Book.BOOK
+import org.jooq.generated.tables.records.BookRecord
 
 @ApplicationScoped
 class BookRepository(
@@ -12,36 +12,20 @@ class BookRepository(
 ) {
     fun findById(id: Int): Book? {
         return dsl
-            .selectFrom(Books.BOOKS)
-            .where(Books.BOOKS.ID.eq(id))
+            .selectFrom(BOOK)
+            .where(BOOK.ID.eq(id))
             .fetchOne()
-            ?.toBook()
+            ?.toDomain()
     }
 
     @Transactional
     fun create(book: Book): Book {
-        val record = dsl.newRecord(Books.BOOKS)
-        if (book.id != null) {
-            record.id = book.id
-        } else {
-            val maxId =
-                dsl.select(org.jooq.impl.DSL.max(Books.BOOKS.ID))
-                    .from(Books.BOOKS)
-                    .fetchOneInto(Int::class.java) ?: 0
-            record.id = maxId + 1
-        }
-
-        record.title = book.title
-        record.description = book.description
-        record.publishedYear = book.publishedYear
-        record.authorId = book.authorId
-
+        val record = book.fromDomain()
         record.store()
-
-        return record.toBook()
+        return record.toDomain()
     }
 
-    private fun BooksRecord.toBook(): Book {
+    private fun BookRecord.toDomain(): Book {
         return Book(
             id = this.id,
             title = this.title,
@@ -50,9 +34,18 @@ class BookRepository(
             authorId = this.authorId,
         )
     }
+
+    private fun Book.fromDomain(): BookRecord {
+        val record = dsl.newRecord(BOOK)
+        record.id = this.id
+        record.title = this.title
+        record.description = this.description
+        record.publishedYear = this.publishedYear
+        record.authorId = this.authorId
+        return record
+    }
 }
 
-// Data class representing a Book entity
 data class Book(
     val id: Int? = null,
     val title: String,
