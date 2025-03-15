@@ -21,11 +21,9 @@ class BookRepository(
     @Transactional
     fun create(book: Book): Book {
         val record = dsl.newRecord(Books.BOOKS)
-        // Set ID if provided, otherwise generate a new ID
         if (book.id != null) {
             record.id = book.id
         } else {
-            // For a real application, you would use a sequence or other reliable ID generation mechanism
             val maxId =
                 dsl.select(org.jooq.impl.DSL.max(Books.BOOKS.ID))
                     .from(Books.BOOKS)
@@ -43,7 +41,6 @@ class BookRepository(
         return record.toBook()
     }
 
-    // Extension function to convert BooksRecord to Book data class
     private fun BooksRecord.toBook(): Book {
         return Book(
             id = this.id,
