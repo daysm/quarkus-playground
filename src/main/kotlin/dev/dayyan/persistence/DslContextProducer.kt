@@ -9,6 +9,7 @@ import org.jooq.SQLDialect
 import org.jooq.conf.RenderNameCase
 import org.jooq.conf.RenderQuotedNames
 import org.jooq.conf.Settings
+import org.jooq.exception.DataAccessException
 import org.jooq.impl.DSL
 import org.jooq.impl.DefaultConfiguration
 import javax.sql.DataSource
@@ -21,7 +22,11 @@ class DslContextProducer {
     @Produces
     @RequestScoped
     fun getDslContext(): DSLContext {
-        return DSL.using(getConfiguration())
+        return try {
+            DSL.using(getConfiguration())
+        } catch (e: DataAccessException) {
+            throw RuntimeException("Error creating DSLContext", e)
+        }
     }
 
     private fun getConfiguration(): Configuration {
