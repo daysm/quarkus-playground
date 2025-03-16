@@ -15,8 +15,9 @@ import org.jooq.impl.DefaultConfiguration
 import javax.sql.DataSource
 
 class DslContextProducer {
-    // IntelliJ mistakenly claims that there is no bean that matches injection point
+    // IntelliJ mistakenly claims that there is no bean that matches the injection point
     @Inject
+    @Suppress("CdiInjectionPointsInspection")
     private lateinit var dataSource: DataSource
 
     @Produces

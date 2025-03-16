@@ -20,6 +20,7 @@ class BookRepository(
 
     @Transactional
     fun create(book: Book): Book {
+        require(book.id == null) { "id will be set by database" }
         val record = book.fromDomain()
         record.store()
         return record.toDomain()
@@ -37,7 +38,7 @@ class BookRepository(
 
     private fun Book.fromDomain(): BookRecord {
         val record = dsl.newRecord(BOOK)
-        record.id = this.id
+        id?.let { record.id = it }
         record.title = this.title
         record.description = this.description
         record.publishedYear = this.publishedYear
