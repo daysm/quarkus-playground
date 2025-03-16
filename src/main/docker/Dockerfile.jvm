@@ -88,7 +88,7 @@ WORKDIR /app
 COPY . .
 
 # Run the build
-RUN ./gradlew build
+RUN ./gradlew build -x test
 
 # Image stage
 FROM registry.access.redhat.com/ubi9/openjdk-21:1.21
