@@ -1,15 +1,30 @@
 # quarkus-playground
 
 ## Testcontainers and Colima
-Ensure you have started Colima like this: `colima start --network-address`
-Setting the below environment variables enables Testcontainers to find the Docker environment provided by Colima.
-I use direnv and place the below snippet in an .envrc file in the project.
+Ensure Colima is started with the following command:
+
+```
+colima start --network-address
+```
+
+Next, set the environment variables below to allow Testcontainers to detect the Docker environment provided by Colima.
+
+If you use direnv, add the following snippet to your .envrc file in the project:
 
 ```
 export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
 export TESTCONTAINERS_HOST_OVERRIDE=$(colima ls -j | jq -r '.address')
 export DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock"
 ```
+
+To ensure IntelliJ recognizes these environment variables:
+1.	Enable Direnv in your Run/Debug configuration.
+2.	Set IntelliJ as the test runner by navigating to Build Tools -> Gradle and selecting “Run tests using: IntelliJ IDEA”.
+
+This setup ensures smooth integration with Testcontainers and IntelliJ.
+
+Running tests with Gradle triggered by Intellij currently does not work.
+
 ## Running the application in dev mode
 
 You can run your application in dev mode that enables live coding using:
