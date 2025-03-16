@@ -86,3 +86,11 @@ sourceSets {
         }
     }
 }
+
+tasks.named("compileKotlin") {
+    dependsOn("jooqCodegen")
+}
+
+tasks.named("runKtlintCheckOverMainSourceSet") {
+    dependsOn("jooqCodegen")
+}
