@@ -1,6 +1,6 @@
 # quarkus-playground
 
-## Testcontainers and Colima
+## Local development with Testcontainers and Colima
 Ensure Colima is started with the following command:
 
 ```
