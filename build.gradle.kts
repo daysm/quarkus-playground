@@ -41,10 +41,6 @@ java {
     targetCompatibility = JavaVersion.VERSION_21
 }
 
-tasks.withType<Test> {
-    systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
-}
-
 allOpen {
     annotation("jakarta.ws.rs.Path")
     annotation("jakarta.enterprise.context.ApplicationScoped")
@@ -87,10 +83,32 @@ sourceSets {
     }
 }
 
+ktlint {
+    verbose.set(true)
+}
+
 tasks.named("compileKotlin") {
     dependsOn("jooqCodegen")
 }
 
 tasks.named("runKtlintCheckOverMainSourceSet") {
     dependsOn("jooqCodegen")
+}
+
+tasks.named("compileKotlin") {
+    dependsOn("ktlintCheck")
+}
+
+tasks.withType<Test> {
+    testLogging {
+        events("passed", "skipped", "failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showExceptions = true
+        showCauses = true
+        showStackTraces = true
+    }
+}
+
+tasks.withType<Test> {
+    systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
 }
