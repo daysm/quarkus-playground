@@ -58,7 +58,7 @@ jobs:
   flyway-migrate-dev:
     needs: build-and-publish
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.ref == 'refs/heads/main'
     environment: dev
     steps:
       - name: Checkout sources
@@ -93,7 +93,7 @@ jobs:
 
   deploy-dev:
     needs: flyway-migrate-dev
-    if: github.event_name == 'pull_request'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: dev
     steps:
