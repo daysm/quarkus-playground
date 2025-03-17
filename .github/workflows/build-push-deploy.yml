@@ -55,9 +55,45 @@ jobs:
             docker push ghcr.io/${{ github.repository }}/app:latest
           fi
 
-  deploy-dev:
+  flyway-migrate-dev:
     needs: build-and-publish
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    environment: dev
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Run Flyway migrations (dev)
+        run: |
+          docker run --rm \
+            -v $(pwd)/src/main/resources/db/migration:/flyway/sql \
+            flyway/flyway migrate \
+              -url="${{ secrets.DB_URL }}" \
+              -user="${{ secrets.DB_USER }}" \
+              -password="${{ secrets.DB_PASSWORD }}"
+
+  flyway-migrate-prod:
+    needs: build-and-publish
+    runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    environment: prod
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Run Flyway migrations (prod)
+        run: |
+          docker run --rm \
+            -v $(pwd)/src/main/resources/db/migration:/flyway/sql \
+            flyway/flyway migrate \
+              -url="${{ secrets.DB_URL }}" \
+              -user="${{ secrets.DB_USER }}" \
+              -password="${{ secrets.DB_PASSWORD }}"
+
+  deploy-dev:
+    needs: flyway-migrate-dev
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     environment: dev
     steps:
@@ -67,7 +103,7 @@ jobs:
             --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
 
   deploy-prod:
-    needs: [build-and-publish, deploy-dev]
+    needs: flyway-migrate-prod
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: prod
