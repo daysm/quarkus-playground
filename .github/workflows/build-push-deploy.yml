@@ -43,13 +43,13 @@ jobs:
           docker build -t ghcr.io/${{ github.repository }}/app:${{ github.sha }} -f src/main/docker/Dockerfile.jvm .
           docker push ghcr.io/${{ github.repository }}/app:${{ github.sha }}
           
-          # Tag with latest-dev for PRs
+          # Tag with latest-dev tag for deployments to dev
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             docker tag ghcr.io/${{ github.repository }}/app:${{ github.sha }} ghcr.io/${{ github.repository }}/app:latest-dev
             docker push ghcr.io/${{ github.repository }}/app:latest-dev
           fi
           
-          # Tag with latest tag for main branch
+          # Tag with latest tag for deployments to prod
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
             docker tag ghcr.io/${{ github.repository }}/app:${{ github.sha }} ghcr.io/${{ github.repository }}/app:latest
             docker push ghcr.io/${{ github.repository }}/app:latest
