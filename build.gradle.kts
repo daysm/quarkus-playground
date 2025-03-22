@@ -23,6 +23,7 @@ dependencies {
     implementation(enforcedPlatform("$quarkusPlatformGroupId:$quarkusPlatformArtifactId:$quarkusPlatformVersion"))
     implementation("io.quarkus:quarkus-rest")
     implementation("io.quarkus:quarkus-kotlin")
+    implementation("io.quarkus:quarkus-rest-jackson")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("io.quarkus:quarkus-arc")
 
@@ -93,10 +94,6 @@ tasks.named("compileKotlin") {
 
 tasks.named("runKtlintCheckOverMainSourceSet") {
     dependsOn("jooqCodegen")
-}
-
-tasks.named("compileKotlin") {
-    dependsOn("ktlintCheck")
 }
 
 tasks.withType<Test> {
