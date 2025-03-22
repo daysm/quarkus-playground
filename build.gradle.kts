@@ -95,10 +95,6 @@ tasks.named("runKtlintCheckOverMainSourceSet") {
     dependsOn("jooqCodegen")
 }
 
-tasks.named("compileKotlin") {
-    dependsOn("ktlintCheck")
-}
-
 tasks.withType<Test> {
     testLogging {
         events("passed", "skipped", "failed")
