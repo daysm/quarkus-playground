@@ -2,7 +2,6 @@ package dev.dayyan.persistence
 
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.transaction.Transactional
-import kotlinx.serialization.Serializable
 import org.jooq.DSLContext
 import org.jooq.generated.tables.Book.BOOK
 import org.jooq.generated.tables.records.BookRecord
@@ -48,7 +47,6 @@ class BookRepository(
     }
 }
 
-@Serializable
 data class Book(
     val id: Int? = null,
     val title: String,
