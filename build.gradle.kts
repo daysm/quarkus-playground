@@ -5,6 +5,7 @@ plugins {
     id("org.jlleitschuh.gradle.ktlint") version "12.2.0"
     id("org.flywaydb.flyway") version "11.3.4"
     id("org.jooq.jooq-codegen-gradle") version "3.20.1"
+    kotlin("plugin.serialization") version "2.1.20"
 }
 
 repositories {
@@ -24,6 +25,7 @@ dependencies {
     implementation("io.quarkus:quarkus-rest")
     implementation("io.quarkus:quarkus-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
     implementation("io.quarkus:quarkus-arc")
 
     jooqCodegen("org.jooq:jooq-meta-extensions:3.20.1")
