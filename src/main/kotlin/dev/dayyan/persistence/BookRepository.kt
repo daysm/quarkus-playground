@@ -10,12 +10,20 @@ import org.jooq.generated.tables.records.BookRecord
 class BookRepository(
     private val dsl: DSLContext,
 ) {
-    fun findById(id: Int): Book? {
+    fun getById(id: Int): Book? {
         return dsl
             .selectFrom(BOOK)
             .where(BOOK.ID.eq(id))
             .fetchOne()
             ?.toDomain()
+    }
+
+    fun getAll(): Set<Book> {
+        return dsl
+            .selectFrom(BOOK)
+            .fetch()
+            .map { it.toDomain() }
+            .toSet()
     }
 
     @Transactional

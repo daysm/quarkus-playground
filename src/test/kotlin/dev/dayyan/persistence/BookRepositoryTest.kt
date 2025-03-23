@@ -13,7 +13,7 @@ class BookRepositoryTest : PostgresTestBase() {
 
     @Test
     fun `it returns null when no book with id exists`() {
-        val fromDb = sut.findById(1)
+        val fromDb = sut.getById(1)
         assertThat(fromDb).isNull()
     }
 
@@ -21,7 +21,7 @@ class BookRepositoryTest : PostgresTestBase() {
     fun `it returns book`() {
         val bookToCreate = Book(title = "title")
         val persistedBook = sut.create(bookToCreate)
-        val retrievedBook = sut.findById(persistedBook.id!!)
+        val retrievedBook = sut.getById(persistedBook.id!!)
         assertThat(retrievedBook).isEqualTo(persistedBook)
     }
 
@@ -29,7 +29,7 @@ class BookRepositoryTest : PostgresTestBase() {
     fun `it handles clean up`() {
         val bookToCreate = Book(title = "title")
         val persistedBook = sut.create(bookToCreate)
-        val retrievedBook = sut.findById(persistedBook.id!!)
+        val retrievedBook = sut.getById(persistedBook.id!!)
         assertThat(retrievedBook).isEqualTo(persistedBook)
     }
 }
