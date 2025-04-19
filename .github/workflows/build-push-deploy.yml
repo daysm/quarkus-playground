@@ -30,31 +30,35 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
 
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+      - name: Authenticate to Google Cloud via Workload Identity Federation
+        uses: google-github-actions/auth@v2
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          token_format: access_token
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
+          service_account: "github-pusher-sa-${{ secrets.ENV }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
 
-      - name: Build and push Docker image
+      - name: Configure Docker to use gcloud as a credential helper
         run: |
-          # Build and tag with SHA
-          docker build -t ghcr.io/${{ github.repository }}/app:${{ github.sha }} -f src/main/docker/Dockerfile.jvm .
-          docker push ghcr.io/${{ github.repository }}/app:${{ github.sha }}
-          
-          # Tag with latest-dev tag for deployments to dev
+          gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
+
+      - name: Build and push Docker image to Artifact Registry
+        run: |
+          IMAGE_URI="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/images-${{ secrets.ENV }}/app"
+
+          docker build -t "$IMAGE_URI:${{ github.sha }}" -f src/main/docker/Dockerfile.jvm .
+          docker push "$IMAGE_URI:${{ github.sha }}"
+
+          # Tag with latest-dev for PRs, latest for main
           if [ "${{ github.event_name }}" == "pull_request" ]; then
-            docker tag ghcr.io/${{ github.repository }}/app:${{ github.sha }} ghcr.io/${{ github.repository }}/app:latest-dev
-            docker push ghcr.io/${{ github.repository }}/app:latest-dev
-          fi
-          
-          # Tag with latest tag for deployments to prod
-          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            docker tag ghcr.io/${{ github.repository }}/app:${{ github.sha }} ghcr.io/${{ github.repository }}/app:latest
-            docker push ghcr.io/${{ github.repository }}/app:latest
+            docker tag "$IMAGE_URI:${{ github.sha }}" "$IMAGE_URI:latest-dev"
+            docker push "$IMAGE_URI:latest-dev"
           fi
 
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            docker tag "$IMAGE_URI:${{ github.sha }}" "$IMAGE_URI:latest"
+            docker push "$IMAGE_URI:latest"
+          fi
+          
   flyway-migrate-dev:
     needs: build-and-publish
     runs-on: ubuntu-latest
