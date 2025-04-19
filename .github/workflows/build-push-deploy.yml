@@ -37,6 +37,7 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
           service_account: "github-pusher-sa-${{ secrets.ENV }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
 
       - name: Configure Docker to use gcloud as a credential helper
         run: |
