@@ -92,7 +92,7 @@ jobs:
             --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
 
   build-and-publish-prod:
-    needs: deploy-dev
+    # needs: deploy-dev
     # Only run for main branch pushes, not pull requests
     # if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
