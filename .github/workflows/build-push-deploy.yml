@@ -7,8 +7,9 @@ on:
     branches: [main]
 
 jobs:
-  build-and-publish:
+  build-and-publish-dev:
     runs-on: ubuntu-latest
+    environment: dev
     permissions:
       contents: read
       packages: write
@@ -18,11 +19,23 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build with Gradle
+        run: ./gradlew build
+
       - name: Authenticate to Google Cloud via Workload Identity Federation
         uses: google-github-actions/auth@v2
         with:
           token_format: access_token
-          project_id: quarkus-playground-dev
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
           workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
           service_account: "github-pusher-sa-${{ secrets.ENV }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
           audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
@@ -67,6 +80,53 @@ jobs:
               -user="${{ secrets.DB_USER }}" \
               -password="${{ secrets.DB_PASSWORD }}"
 
+  deploy-dev:
+    needs: flyway-migrate-dev
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Trigger Coolify Dev Deployment
+        run: |
+          curl --request GET "${{ secrets.COOLIFY_DEV_WEBHOOK }}" \
+            --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
+
+  build-and-publish-prod:
+    needs: deploy-dev
+    # Only run for main branch pushes, not pull requests
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: prod
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        
+      - name: Authenticate to Google Cloud via Workload Identity Federation (Prod)
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-pool-prod/providers/github-provider-prod"
+          service_account: "github-pusher-sa-prod@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-pool-prod/providers/github-provider-prod"
+      
+      - name: Configure Docker to use gcloud as a credential helper
+        run: |
+          gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
+      
+      - name: Build and push Docker image to Artifact Registry (Prod)
+        run: |
+          IMAGE_URI="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/images-prod/app"
+          docker build -t "$IMAGE_URI:${{ github.sha }}" -f src/main/docker/Dockerfile.jvm .
+          docker push "$IMAGE_URI:${{ github.sha }}"
+          docker tag "$IMAGE_URI:${{ github.sha }}" "$IMAGE_URI:latest"
+          docker push "$IMAGE_URI:latest"
+
   flyway-migrate-prod:
     needs: build-and-publish
     runs-on: ubuntu-latest
@@ -84,17 +144,6 @@ jobs:
               -url="${{ secrets.DB_URL }}" \
               -user="${{ secrets.DB_USER }}" \
               -password="${{ secrets.DB_PASSWORD }}"
-
-  deploy-dev:
-    needs: flyway-migrate-dev
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: dev
-    steps:
-      - name: Trigger Coolify Dev Deployment
-        run: |
-          curl --request GET "${{ secrets.COOLIFY_DEV_WEBHOOK }}" \
-            --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
 
   deploy-prod:
     needs: flyway-migrate-prod
