@@ -1,5 +1,4 @@
-name: Build, Push, and Deploy
-
+name: Lint, Test, Build, Deploy
 on:
   push:
     branches: [main]
@@ -7,9 +6,52 @@ on:
     branches: [main]
 
 jobs:
-  build-and-publish-dev:
+  lint-test-build:
+    name: Lint, Test, Build
     runs-on: ubuntu-latest
-    environment: dev
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 21
+          
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        
+      - name: Run ktlintCheck
+        run: ./gradlew ktlintCheck
+
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Run tests
+        run: ./gradlew test
+        
+      - name: Build application
+        run: ./gradlew build
+      
+      - name: Build Docker image
+        run: |
+          docker build -t app:${{ github.sha }} -f src/main/docker/Dockerfile.jvm .
+          
+      - name: Export Docker image
+        run: docker save app:${{ github.sha }} > docker-image.tar
+        
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: docker-image.tar
+
+  deploy-to-dev:
+    name: Deploy to Dev Environment
+    needs: lint-test-build
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'pull_request' && 'dev-pr' || 'dev' }}
     permissions:
       contents: read
       packages: write
@@ -19,17 +61,13 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
         with:
-          distribution: 'temurin'
-          java-version: 21
+          name: docker-image
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Build with Gradle
-        run: ./gradlew build
+      - name: Load Docker image
+        run: docker load < docker-image.tar
 
       - name: Authenticate to Google Cloud via Workload Identity Federation
         uses: google-github-actions/auth@v2
@@ -44,33 +82,15 @@ jobs:
         run: |
           gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
 
-      - name: Build and push Docker image to Artifact Registry
+      - name: Push Docker image to Dev Artifact Registry
         run: |
           IMAGE_URI="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/images-${{ secrets.ENV }}/app"
-
-          docker build -t "$IMAGE_URI:${{ github.sha }}" -f src/main/docker/Dockerfile.jvm .
+          docker tag "app:${{ github.sha }}" "$IMAGE_URI:${{ github.sha }}"
           docker push "$IMAGE_URI:${{ github.sha }}"
-
-          # Tag with latest-dev for PRs, latest for main
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            docker tag "$IMAGE_URI:${{ github.sha }}" "$IMAGE_URI:latest-dev"
-            docker push "$IMAGE_URI:latest-dev"
-          fi
-
-          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            docker tag "$IMAGE_URI:${{ github.sha }}" "$IMAGE_URI:latest"
-            docker push "$IMAGE_URI:latest"
-          fi
           
-  flyway-migrate-dev:
-    needs: build-and-publish-dev
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    environment: dev
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-
+          docker tag "$IMAGE_URI:${{ github.sha }}" "$IMAGE_URI:latest"
+          docker push "$IMAGE_URI:latest"
+        
       - name: Run Flyway migrations (dev)
         run: |
           docker run --rm \
@@ -79,21 +99,16 @@ jobs:
               -url="${{ secrets.DB_URL }}" \
               -user="${{ secrets.DB_USER }}" \
               -password="${{ secrets.DB_PASSWORD }}"
-
-  deploy-dev:
-    needs: flyway-migrate-dev
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: dev
-    steps:
+              
       - name: Trigger Coolify Dev Deployment
         run: |
           curl --request GET "${{ secrets.COOLIFY_DEV_WEBHOOK }}" \
             --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
 
-  build-and-publish-prod:
-    needs: deploy-dev
-    # Only run for main branch pushes, not pull requests
+
+  deploy-to-prod:
+    name: Deploy to Production Environment
+    needs: deploy-to-dev
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: prod
@@ -106,17 +121,13 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
         with:
-          distribution: 'temurin'
-          java-version: 21
+          name: docker-image
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Build with Gradle
-        run: ./gradlew build
+      - name: Load Docker image
+        run: docker load < docker-image.tar
 
       - name: Authenticate to Google Cloud via Workload Identity Federation
         uses: google-github-actions/auth@v2
@@ -126,28 +137,20 @@ jobs:
           workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
           service_account: "github-pusher-sa-${{ secrets.ENV }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
           audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
-      
+
       - name: Configure Docker to use gcloud as a credential helper
         run: |
           gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
-      
-      - name: Build and push Docker image to Artifact Registry (Prod)
+
+      - name: Push Docker image to Prod Artifact Registry
         run: |
           IMAGE_URI="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/images-prod/app"
-          docker build -t "$IMAGE_URI:${{ github.sha }}" -f src/main/docker/Dockerfile.jvm .
+          docker tag "app:${{ github.sha }}" "$IMAGE_URI:${{ github.sha }}"
           docker push "$IMAGE_URI:${{ github.sha }}"
+          
           docker tag "$IMAGE_URI:${{ github.sha }}" "$IMAGE_URI:latest"
           docker push "$IMAGE_URI:latest"
-
-  flyway-migrate-prod:
-    needs: build-and-publish-prod
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    environment: prod
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-
+        
       - name: Run Flyway migrations (prod)
         run: |
           docker run --rm \
@@ -156,13 +159,7 @@ jobs:
               -url="${{ secrets.DB_URL }}" \
               -user="${{ secrets.DB_USER }}" \
               -password="${{ secrets.DB_PASSWORD }}"
-
-  deploy-prod:
-    needs: flyway-migrate-prod
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: prod
-    steps:
+              
       - name: Trigger Coolify Prod Deployment
         run: |
           curl --request GET "${{ secrets.COOLIFY_PROD_WEBHOOK }}" \
