@@ -88,7 +88,6 @@ jobs:
           docker tag "app:${{ github.sha }}" "$IMAGE_URI:${{ github.sha }}"
           docker push "$IMAGE_URI:${{ github.sha }}"
           
-          # Always tag with 'latest' for consistent deployments
           docker tag "$IMAGE_URI:${{ github.sha }}" "$IMAGE_URI:latest"
           docker push "$IMAGE_URI:latest"
         
@@ -149,7 +148,6 @@ jobs:
           docker tag "app:${{ github.sha }}" "$IMAGE_URI:${{ github.sha }}"
           docker push "$IMAGE_URI:${{ github.sha }}"
           
-          # Always tag with 'latest' for consistent deployments
           docker tag "$IMAGE_URI:${{ github.sha }}" "$IMAGE_URI:latest"
           docker push "$IMAGE_URI:latest"
         
