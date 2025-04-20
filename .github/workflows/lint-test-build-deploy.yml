@@ -7,7 +7,7 @@ on:
 
 jobs:
   lint-test-build:
-    name: Lint, Test, Build and Create Docker Image
+    name: Lint, Test, Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -47,12 +47,10 @@ jobs:
           name: docker-image
           path: docker-image.tar
 
-  push-to-dev:
-    name: Push Image to Dev Registry
+  deploy-to-dev:
+    name: Deploy to Dev Environment
     needs: lint-test-build
     runs-on: ubuntu-latest
-    # For PRs, use dev-pr environment (with approval required)
-    # For main, use dev environment (no approval needed)
     environment: ${{ github.event_name == 'pull_request' && 'dev-pr' || 'dev' }}
     permissions:
       contents: read
@@ -60,14 +58,17 @@ jobs:
       attestations: write
       id-token: write
     steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
       - name: Download Docker image
         uses: actions/download-artifact@v4
         with:
           name: docker-image
-          
+
       - name: Load Docker image
         run: docker load < docker-image.tar
-        
+
       - name: Authenticate to Google Cloud via Workload Identity Federation
         uses: google-github-actions/auth@v2
         with:
@@ -76,11 +77,11 @@ jobs:
           workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
           service_account: "github-pusher-sa-${{ secrets.ENV }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
           audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
-          
+
       - name: Configure Docker to use gcloud as a credential helper
         run: |
           gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
-          
+
       - name: Push Docker image to Dev Artifact Registry
         run: |
           IMAGE_URI="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/images-${{ secrets.ENV }}/app"
@@ -90,15 +91,6 @@ jobs:
           # Always tag with 'latest' for consistent deployments
           docker tag "$IMAGE_URI:${{ github.sha }}" "$IMAGE_URI:latest"
           docker push "$IMAGE_URI:latest"
-
-  deploy-to-dev:
-    name: Deploy to Dev Environment
-    needs: push-to-dev
-    runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'pull_request' && 'dev-pr' || 'dev' }}
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
         
       - name: Run Flyway migrations (dev)
         run: |
@@ -114,8 +106,9 @@ jobs:
           curl --request GET "${{ secrets.COOLIFY_DEV_WEBHOOK }}" \
             --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
 
-  push-to-prod:
-    name: Push Image to Prod Registry
+
+  deploy-to-prod:
+    name: Deploy to Production Environment
     needs: deploy-to-dev
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -126,14 +119,17 @@ jobs:
       attestations: write
       id-token: write
     steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
       - name: Download Docker image
         uses: actions/download-artifact@v4
         with:
           name: docker-image
-          
+
       - name: Load Docker image
         run: docker load < docker-image.tar
-        
+
       - name: Authenticate to Google Cloud via Workload Identity Federation
         uses: google-github-actions/auth@v2
         with:
@@ -142,11 +138,11 @@ jobs:
           workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
           service_account: "github-pusher-sa-${{ secrets.ENV }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
           audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
-          
+
       - name: Configure Docker to use gcloud as a credential helper
         run: |
           gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
-          
+
       - name: Push Docker image to Prod Artifact Registry
         run: |
           IMAGE_URI="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/images-prod/app"
@@ -156,16 +152,6 @@ jobs:
           # Always tag with 'latest' for consistent deployments
           docker tag "$IMAGE_URI:${{ github.sha }}" "$IMAGE_URI:latest"
           docker push "$IMAGE_URI:latest"
-
-  deploy-to-prod:
-    name: Deploy to Production Environment
-    needs: push-to-prod
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: prod
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
         
       - name: Run Flyway migrations (prod)
         run: |
