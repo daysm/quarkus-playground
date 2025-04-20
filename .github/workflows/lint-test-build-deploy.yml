@@ -23,7 +23,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         
       - name: Lint code
-        run: ./gradlew lint
+        run: ./gradlew ktlintCheck
         
       - name: Run tests
         run: ./gradlew test
