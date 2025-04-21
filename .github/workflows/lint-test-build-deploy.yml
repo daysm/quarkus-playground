@@ -51,7 +51,7 @@ jobs:
     name: Terraform Plan Dev
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
-    environment: ${{ github.event_name == 'pull_request' && 'dev-pr' || 'dev' }}
+    environment: dev
     permissions:
       contents: read
       id-token: write
