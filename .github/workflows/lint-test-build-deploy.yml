@@ -188,6 +188,7 @@ jobs:
 
   terraform-plan-prod:
     name: Terraform Plan Prod
+    needs: deploy-to-dev
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     environment: prod
