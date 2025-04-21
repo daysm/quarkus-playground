@@ -190,7 +190,7 @@ jobs:
             --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
 
   terraform-plan-prod:
-    name: Terraform Plan Dev
+    name: Terraform Plan Prod
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     environment: prod
@@ -209,9 +209,9 @@ jobs:
         with:
           token_format: access_token
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
-          service_account: "github-pusher-sa-dev@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
-          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
+          service_account: "github-pusher-prod@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
       - name: Initialize Terraform
         working-directory: ./infrastructure
         run: |
@@ -232,7 +232,7 @@ jobs:
           path: ./infrastructure/tfplan
 
   terraform-apply-prod:
-    name: Terraform Apply Dev
+    name: Terraform Apply Prod
     needs: terraform-plan-prod
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
@@ -252,9 +252,9 @@ jobs:
         with:
           token_format: access_token
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
-          service_account: "github-pusher-sa-dev@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
-          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
+          service_account: "github-pusher-sa-prod@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
       - name: Download Terraform Plan
         uses: actions/download-artifact@v4
         with:
