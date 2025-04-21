@@ -1,4 +1,4 @@
-name: Lint, Test, Build, Deploy
+name: Main
 on:
   push:
     branches: [main]
@@ -12,44 +12,126 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: 21
-          
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-        
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.11.3
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive
       - name: Run ktlintCheck
         run: ./gradlew ktlintCheck
-
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-
       - name: Run tests
         run: ./gradlew test
-        
       - name: Build application
         run: ./gradlew build
-      
       - name: Build Docker image
         run: |
           docker build -t app:${{ github.sha }} -f src/main/docker/Dockerfile.jvm .
-          
       - name: Export Docker image
         run: docker save app:${{ github.sha }} > docker-image.tar
-        
       - name: Upload Docker image artifact
         uses: actions/upload-artifact@v4
         with:
           name: docker-image
           path: docker-image.tar
 
-  deploy-to-dev:
-    name: Deploy to Dev Environment
+  terraform-plan-dev:
+    name: Terraform Plan Dev
     needs: lint-test-build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.11.3
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+          service_account: "github-pusher-sa-dev@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+      - name: Initialize Terraform
+        working-directory: ./infrastructure
+        run: |
+          terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
+      - name: Select Dev Workspace
+        working-directory: ./infrastructure
+        run: |
+          terraform workspace select dev
+      - name: 
+        working-directory: ./infrastructure
+        id: plan
+        run: |
+          terraform plan -var-file=vars/dev.tfvars -out=tfplan
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-dev
+          path: ./infrastructure/tfplan
+
+  terraform-apply-dev:
+    name: Terraform Apply Dev
+    needs: terraform-plan-dev
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    environment: ${{ github.event_name == 'pull_request' && 'dev-pr' || 'dev' }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.11.3
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+          service_account: "github-pusher-sa-dev@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan-dev
+          path: ./infrastructure
+      - name: Initialize Terraform
+        working-directory: ./infrastructure
+        run: |
+          terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
+      - name: Select Dev Workspace
+        working-directory: ./infrastructure
+        run: |
+          terraform workspace select dev
+      - name: Terraform Apply
+        working-directory: ./infrastructure
+        run: |
+          terraform apply -auto-approve tfplan
+  
+  deploy-to-dev:
+    name: Deploy to Dev
+    needs: [lint-test-build, terraform-apply-dev]
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'pull_request' && 'dev-pr' || 'dev' }}
     permissions:
@@ -105,10 +187,94 @@ jobs:
           curl --request GET "${{ secrets.COOLIFY_DEV_WEBHOOK }}" \
             --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
 
+  terraform-plan-prod:
+    name: Terraform Plan Prod
+    needs: deploy-to-dev
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.11.3
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
+          service_account: "github-pusher-sa-prod@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
+      - name: Initialize Terraform
+        working-directory: ./infrastructure
+        run: |
+          terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
+      - name: Select Prod Workspace
+        working-directory: ./infrastructure
+        run: |
+          terraform workspace select prod
+      - name: 
+        working-directory: ./infrastructure
+        id: plan
+        run: |
+          terraform plan -var-file=vars/prod.tfvars -out=tfplan
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-prod
+          path: ./infrastructure/tfplan
+
+  terraform-apply-prod:
+    name: Terraform Apply Prod
+    needs: terraform-plan-prod
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.11.3
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
+          service_account: "github-pusher-sa-prod@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan-prod
+          path: ./infrastructure
+      - name: Initialize Terraform
+        working-directory: ./infrastructure
+        run: |
+          terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
+      - name: Select Prod Workspace
+        working-directory: ./infrastructure
+        run: |
+          terraform workspace select prod
+      - name: Terraform Apply
+        working-directory: ./infrastructure
+        run: |
+          terraform apply -auto-approve tfplan
 
   deploy-to-prod:
-    name: Deploy to Production Environment
-    needs: deploy-to-dev
+    name: Deploy to Prod
+    needs: terraform-apply-prod
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: prod

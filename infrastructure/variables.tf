@@ -9,11 +9,11 @@ variable "gcp_region" {
 }
 
 variable "env" {
-    description = "The environment"
-    type = string
+  description = "The environment"
+  type        = string
 }
 
 variable "git_repository" {
-    description = "Git repository"
-    type = string
+  description = "Git repository"
+  type        = string
 }
