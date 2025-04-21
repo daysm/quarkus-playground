@@ -74,6 +74,10 @@ jobs:
         working-directory: ./infrastructure
         run: |
           terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
+      - name: Select Dev Workspace
+        working-directory: ./infrastructure
+        run: |
+          terraform workspace select dev || terraform workspace new dev
       - name: 
         working-directory: ./infrastructure
         id: plan
@@ -117,6 +121,10 @@ jobs:
         working-directory: ./infrastructure
         run: |
           terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
+      - name: Select Dev Workspace
+        working-directory: ./infrastructure
+        run: |
+          terraform workspace select dev || terraform workspace new dev
       - name: Terraform Apply
         working-directory: ./infrastructure
         run: |
