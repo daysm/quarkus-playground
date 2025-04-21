@@ -47,9 +47,80 @@ jobs:
           name: docker-image
           path: docker-image.tar
 
+  terraform-plan-dev:
+    name: Terraform Plan Dev
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    environment: ${{ github.event_name == 'pull_request' && 'dev-pr' || 'dev' }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.11.3
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+          service_account: "github-pusher-sa-dev@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+      - name: Initialize Terraform
+        run: |
+          terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
+      - name: Terraform Plan Dev
+        id: plan
+        run: |
+          terraform plan -var-file=vars/dev.tfvars -out=tfplan
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-dev
+          path: tfplan
+
+  terraform-apply-dev:
+    name: Terraform Apply Dev
+    needs: terraform-plan-dev
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.11.3
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+          service_account: "github-pusher-sa-dev@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan-dev
+      - name: Initialize Terraform
+        run: |
+          terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
+      - name: Terraform Apply
+        run: |
+          terraform apply -auto-approve tfplan
+  
   deploy-to-dev:
     name: Deploy to Dev Environment
-    needs: lint-test-build
+    needs: [lint-test-build, terraform-apply-dev]
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'pull_request' && 'dev-pr' || 'dev' }}
     permissions:
