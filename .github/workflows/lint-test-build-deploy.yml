@@ -46,6 +46,7 @@ jobs:
 
   terraform-plan-dev:
     name: Terraform Plan Dev
+    needs: lint-test-build
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     environment: dev
@@ -273,7 +274,7 @@ jobs:
 
   deploy-to-prod:
     name: Deploy to Prod
-    needs: deploy-to-dev
+    needs: terraform-apply-prod
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: prod
