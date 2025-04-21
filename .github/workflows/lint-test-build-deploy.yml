@@ -12,35 +12,32 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: 21
-          
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-        
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.11.3
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive
       - name: Run ktlintCheck
         run: ./gradlew ktlintCheck
-
       - name: Log in to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-
       - name: Run tests
         run: ./gradlew test
-        
       - name: Build application
         run: ./gradlew build
-      
       - name: Build Docker image
         run: |
           docker build -t app:${{ github.sha }} -f src/main/docker/Dockerfile.jvm .
-          
       - name: Export Docker image
         run: docker save app:${{ github.sha }} > docker-image.tar
-        
       - name: Upload Docker image artifact
         uses: actions/upload-artifact@v4
         with:
