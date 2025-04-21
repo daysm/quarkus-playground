@@ -71,9 +71,11 @@ jobs:
           service_account: "github-pusher-sa-dev@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
           audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
       - name: Initialize Terraform
+        working-directory: ./infrastructure
         run: |
           terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
-      - name: Terraform Plan Dev
+      - name: 
+        working-directory: ./infrastructure
         id: plan
         run: |
           terraform plan -var-file=vars/dev.tfvars -out=tfplan
@@ -112,9 +114,11 @@ jobs:
         with:
           name: terraform-plan-dev
       - name: Initialize Terraform
+        working-directory: ./infrastructure
         run: |
           terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
       - name: Terraform Apply
+        working-directory: ./infrastructure
         run: |
           terraform apply -auto-approve tfplan
   
