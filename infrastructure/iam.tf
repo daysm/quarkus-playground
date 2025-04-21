@@ -1,4 +1,5 @@
 resource "google_iam_workload_identity_pool" "github_pool" {
+  depends_on = [google_project_service.iam_api]
   project = var.gcp_project_id
   workload_identity_pool_id = "gh-actions-identity-pool-${var.env}"
   display_name = "GitHub Actions Pool (${var.env})"
@@ -29,9 +30,20 @@ resource "google_service_account" "github_pusher_sa" {
   display_name = "Service account for GitHub Actions pushing to Artifact Registry (${var.env})"
 }
 
-resource "google_project_iam_member" "sa_artifact_registry_writer" {
+resource "google_project_iam_member" "github_sa_permissions" {
+  for_each = toset([
+    "roles/serviceusage.serviceUsageAdmin",
+    "roles/iam.serviceAccountUser",
+    "roles/iam.workloadIdentityUser",
+    "roles/artifactregistry.writer",
+    "roles/iam.securityAdmin",
+    "roles/resourcemanager.projectIamAdmin",
+    "roles/iam.workloadIdentityPoolAdmin",
+    "roles/storage.admin"
+  ])
+  
   project = var.gcp_project_id
-  role    = "roles/artifactregistry.writer"
+  role    = each.key
   member  = "serviceAccount:${google_service_account.github_pusher_sa.email}"
 }
 
@@ -44,5 +56,11 @@ resource "google_service_account_iam_member" "github_identity_binding" {
 resource "google_storage_bucket_iam_member" "terraform_state_access" {
   bucket = "terraform-state-xfb0phm2"
   role   = "roles/storage.admin"
+  member = "serviceAccount:${google_service_account.github_pusher_sa.email}"
+}
+
+resource "google_storage_bucket_iam_member" "terraform_state_list_access" {
+  bucket = "terraform-state-xfb0phm2"
+  role   = "roles/storage.objectViewer"
   member = "serviceAccount:${google_service_account.github_pusher_sa.email}"
 }
