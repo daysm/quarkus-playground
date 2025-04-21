@@ -192,7 +192,7 @@ jobs:
   terraform-plan-prod:
     name: Terraform Plan Prod
     runs-on: ubuntu-latest
-    # if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     environment: prod
     permissions:
       contents: read
@@ -235,7 +235,7 @@ jobs:
     name: Terraform Apply Prod
     needs: terraform-plan-prod
     runs-on: ubuntu-latest
-    # if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     environment: prod
     permissions:
       contents: read
