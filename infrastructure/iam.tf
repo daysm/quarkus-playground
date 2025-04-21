@@ -40,3 +40,9 @@ resource "google_service_account_iam_member" "github_identity_binding" {
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_pool.name}/attribute.repository/${var.git_repository}"
 }
+
+resource "google_storage_bucket_iam_member" "terraform_state_access" {
+  bucket = "terraform-state-xfb0phm2"
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${google_service_account.github_pusher_sa.email}"
+}

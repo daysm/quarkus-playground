@@ -77,7 +77,7 @@ jobs:
       - name: Select Dev Workspace
         working-directory: ./infrastructure
         run: |
-          terraform workspace select dev || terraform workspace new dev
+          terraform workspace select dev
       - name: 
         working-directory: ./infrastructure
         id: plan
@@ -124,7 +124,7 @@ jobs:
       - name: Select Dev Workspace
         working-directory: ./infrastructure
         run: |
-          terraform workspace select dev || terraform workspace new dev
+          terraform workspace select dev
       - name: Terraform Apply
         working-directory: ./infrastructure
         run: |
