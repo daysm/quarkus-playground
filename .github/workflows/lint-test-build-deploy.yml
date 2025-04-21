@@ -189,6 +189,89 @@ jobs:
           curl --request GET "${{ secrets.COOLIFY_DEV_WEBHOOK }}" \
             --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
 
+  terraform-plan-prod:
+    name: Terraform Plan Dev
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.11.3
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+          service_account: "github-pusher-sa-dev@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+      - name: Initialize Terraform
+        working-directory: ./infrastructure
+        run: |
+          terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
+      - name: Select Prod Workspace
+        working-directory: ./infrastructure
+        run: |
+          terraform workspace select prod
+      - name: 
+        working-directory: ./infrastructure
+        id: plan
+        run: |
+          terraform plan -var-file=vars/prod.tfvars -out=tfplan
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-prod
+          path: ./infrastructure/tfplan
+
+  terraform-apply-prod:
+    name: Terraform Apply Dev
+    needs: terraform-plan-prod
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.11.3
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+          service_account: "github-pusher-sa-dev@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan-prod
+          path: ./infrastructure
+      - name: Initialize Terraform
+        working-directory: ./infrastructure
+        run: |
+          terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
+      - name: Select Prod Workspace
+        working-directory: ./infrastructure
+        run: |
+          terraform workspace select prod
+      - name: Terraform Apply
+        working-directory: ./infrastructure
+        run: |
+          terraform apply -auto-approve tfplan
 
   deploy-to-prod:
     name: Deploy to Production Environment
