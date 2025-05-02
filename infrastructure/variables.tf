@@ -17,3 +17,8 @@ variable "git_repository" {
   description = "Git repository"
   type        = string
 }
+
+variable "image_tag" {
+  description = "The Docker image tag to deploy to Cloud Run"
+  type        = string
+}

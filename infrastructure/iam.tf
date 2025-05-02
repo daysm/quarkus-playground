@@ -39,7 +39,9 @@ resource "google_project_iam_member" "github_sa_permissions" {
     "roles/iam.securityAdmin",
     "roles/resourcemanager.projectIamAdmin",
     "roles/iam.workloadIdentityPoolAdmin",
-    "roles/storage.admin"
+    "roles/storage.admin",
+    "roles/run.admin",
+    "roles/secretmanager.viewer"
   ])
 
   project = var.gcp_project_id
@@ -63,4 +65,22 @@ resource "google_storage_bucket_iam_member" "terraform_state_list_access" {
   bucket = "terraform-state-xfb0phm2"
   role   = "roles/storage.objectViewer"
   member = "serviceAccount:${google_service_account.github_pusher_sa.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "db_url_accessor" {
+  secret_id = google_secret_manager_secret.db_url.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "db_username_accessor" {
+  secret_id = google_secret_manager_secret.db_username.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "db_password_accessor" {
+  secret_id = google_secret_manager_secret.db_password.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloud_run_sa.email}"
 }
