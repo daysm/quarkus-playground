@@ -1,9 +1,9 @@
 name: Main
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   lint-test-build:
@@ -46,7 +46,7 @@ jobs:
   
   push-to-dev:
     name: Push image to Dev
-    needs: [lint-test-build]
+    needs: [ lint-test-build ]
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'pull_request' && 'dev-pr' || 'dev' }}
     permissions:
