@@ -27,7 +27,7 @@ jobs:
         run: terraform fmt -check -recursive
       - name: Run ktlintCheck
         run: ./gradlew ktlintCheck
-      - name: Log in to Docker Hub
+      - name: Log in to Docker Hub # necessary to increase rate limits for pulling images during test
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
       - name: Run tests
         run: ./gradlew test
