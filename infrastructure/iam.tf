@@ -41,7 +41,7 @@ resource "google_project_iam_member" "github_sa_permissions" {
     "roles/iam.workloadIdentityPoolAdmin",
     "roles/storage.admin",
     "roles/run.admin",
-    "roles/secretmanager.secretAccessor"
+    "roles/secretmanager.viewer"
   ])
 
   project = var.gcp_project_id
