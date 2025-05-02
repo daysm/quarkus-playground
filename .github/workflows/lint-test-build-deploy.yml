@@ -195,7 +195,7 @@ jobs:
 
   push-to-prod:
     name: Push image to Prod
-    needs: terraform-apply-prod
+    needs: terraform-apply-dev
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: prod
