@@ -140,7 +140,7 @@ jobs:
         working-directory: ./infrastructure
         run: |
           terraform workspace select dev
-      - name:
+      - name: Run terraform plan
         working-directory: ./infrastructure
         id: plan
         run: |
@@ -291,7 +291,7 @@ jobs:
         working-directory: ./infrastructure
         run: |
           terraform workspace select prod
-      - name:
+      - name: Run terraform plan
         working-directory: ./infrastructure
         id: plan
         run: |
