@@ -23,3 +23,17 @@ resource "google_project_service" "cloudresourcemanager" {
   disable_dependent_services = false
   disable_on_destroy         = false
 }
+
+resource "google_project_service" "cloud_run" {
+  project                    = var.gcp_project_id
+  service                    = "run.googleapis.com"
+  disable_dependent_services = false
+  disable_on_destroy         = false
+}
+
+resource "google_project_service" "secret_manager" {
+  project                    = var.gcp_project_id
+  service                    = "secretmanager.googleapis.com"
+  disable_dependent_services = false
+  disable_on_destroy         = false
+}

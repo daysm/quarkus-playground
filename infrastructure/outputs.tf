@@ -12,3 +12,8 @@ output "github_principal_set" {
   description = "The principal set identifier for the GitHub repository identity"
   value       = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool_provider.github_provider.name}/subject/repo:${var.git_repository}:*"
 }
+
+output "cloud_run_service_url" {
+  description = "The URL of the deployed Cloud Run service"
+  value       = google_cloud_run_v2_service.default.uri
+}
