@@ -76,7 +76,7 @@ jobs:
         working-directory: ./infrastructure
         run: |
           terraform workspace select dev
-      - name: 
+      - name:
         working-directory: ./infrastructure
         id: plan
         run: |
@@ -127,7 +127,7 @@ jobs:
       - name: Terraform Apply
         working-directory: ./infrastructure
         run: |
-          terraform apply -auto-approve tfplan
+          terraform apply -auto-approve  -var="image_tag=${{ github.sha }}" tfplan
   
   deploy-to-dev:
     name: Deploy to Dev
@@ -181,6 +181,19 @@ jobs:
               -url="${{ secrets.DB_URL }}" \
               -user="${{ secrets.DB_USER }}" \
               -password="${{ secrets.DB_PASSWORD }}"
+
+      - name: Deploy to Cloud Run (Dev)
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: quarkus-playground-dev
+          region: ${{ secrets.GCP_REGION }}
+          image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/images-dev/app:${{ github.sha }}
+          env_vars: |
+            DB_URL=${{ secrets.DB_URL }}
+            DB_USER=${{ secrets.DB_USER }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          
 
   terraform-plan-prod:
     name: Terraform Plan Prod
@@ -265,7 +278,7 @@ jobs:
       - name: Terraform Apply
         working-directory: ./infrastructure
         run: |
-          terraform apply -auto-approve tfplan
+          terraform apply -auto-approve -var="image_tag=${{ github.sha }}" tfplan
 
   deploy-to-prod:
     name: Deploy to Prod
@@ -320,3 +333,15 @@ jobs:
               -url="${{ secrets.DB_URL }}" \
               -user="${{ secrets.DB_USER }}" \
               -password="${{ secrets.DB_PASSWORD }}"
+
+      - name: Deploy to Cloud Run (Prod)
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: quarkus-playground-dev
+          region: ${{ secrets.GCP_REGION }}
+          image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/images-prod/app:${{ github.sha }}
+          env_vars: |
+            DB_URL=${{ secrets.DB_URL }}
+            DB_USER=${{ secrets.DB_USER }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
