@@ -80,7 +80,7 @@ jobs:
         working-directory: ./infrastructure
         id: plan
         run: |
-          terraform plan -var-file=vars/dev.tfvars -out=tfplan
+          terraform plan -var-file=vars/dev.tfvars -var="image_tag=${{ github.sha }}" -out=tfplan
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
         with:
@@ -127,7 +127,7 @@ jobs:
       - name: Terraform Apply
         working-directory: ./infrastructure
         run: |
-          terraform apply -auto-approve  -var="image_tag=${{ github.sha }}" tfplan
+          terraform apply -auto-approve tfplan
   
   deploy-to-dev:
     name: Deploy to Dev
@@ -231,7 +231,7 @@ jobs:
         working-directory: ./infrastructure
         id: plan
         run: |
-          terraform plan -var-file=vars/prod.tfvars -out=tfplan
+          terraform plan -var-file=vars/prod.tfvars -var="image_tag=${{ github.sha }}" -out=tfplan
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
         with:
@@ -278,7 +278,7 @@ jobs:
       - name: Terraform Apply
         working-directory: ./infrastructure
         run: |
-          terraform apply -auto-approve -var="image_tag=${{ github.sha }}" tfplan
+          terraform apply -auto-approve tfplan
 
   deploy-to-prod:
     name: Deploy to Prod
