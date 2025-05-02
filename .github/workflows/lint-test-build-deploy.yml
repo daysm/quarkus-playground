@@ -43,10 +43,74 @@ jobs:
         with:
           name: docker-image
           path: docker-image.tar
+  
+  push-to-dev:
+    name: Push image to Dev
+    needs: [lint-test-build]
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'pull_request' && 'dev-pr' || 'dev' }}
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load < docker-image.tar
+
+      - name: Authenticate to Google Cloud via Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
+          service_account: "github-pusher-sa-${{ secrets.ENV }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
+
+      - name: Configure Docker to use gcloud as a credential helper
+        run: |
+          gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
+
+      - name: Push Docker image to Dev Artifact Registry
+        run: |
+          IMAGE_URI="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/images-${{ secrets.ENV }}/app"
+          docker tag "app:${{ github.sha }}" "$IMAGE_URI:${{ github.sha }}"
+          docker push "$IMAGE_URI:${{ github.sha }}"
+          
+          docker tag "$IMAGE_URI:${{ github.sha }}" "$IMAGE_URI:latest"
+          docker push "$IMAGE_URI:latest"
+
+  run-flyway-dev:
+    name: Run Flyway migrations (Dev)
+    needs: [ push-to-dev ]
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'pull_request' && 'dev-pr' || 'dev' }}
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    steps:
+      - name: Run Flyway migrations (dev)
+        run: |
+          docker run --rm \
+            -v $(pwd)/src/main/resources/db/migration:/flyway/sql \
+            flyway/flyway migrate \
+              -url="${{ secrets.DB_URL }}" \
+              -user="${{ secrets.DB_USER }}" \
+              -password="${{ secrets.DB_PASSWORD }}"
 
   terraform-plan-dev:
     name: Terraform Plan Dev
-    needs: lint-test-build
+    needs: run-flyway-dev
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     environment: dev
@@ -128,12 +192,13 @@ jobs:
         working-directory: ./infrastructure
         run: |
           terraform apply -auto-approve tfplan
-  
-  deploy-to-dev:
-    name: Deploy to Dev
-    needs: [lint-test-build, terraform-apply-dev]
+
+  push-to-prod:
+    name: Push image to Prod
+    needs: terraform-apply-prod
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'pull_request' && 'dev-pr' || 'dev' }}
+    environment: prod
     permissions:
       contents: read
       packages: write
@@ -164,16 +229,28 @@ jobs:
         run: |
           gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
 
-      - name: Push Docker image to Dev Artifact Registry
+      - name: Push Docker image to Prod Artifact Registry
         run: |
-          IMAGE_URI="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/images-${{ secrets.ENV }}/app"
+          IMAGE_URI="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/images-prod/app"
           docker tag "app:${{ github.sha }}" "$IMAGE_URI:${{ github.sha }}"
           docker push "$IMAGE_URI:${{ github.sha }}"
           
           docker tag "$IMAGE_URI:${{ github.sha }}" "$IMAGE_URI:latest"
           docker push "$IMAGE_URI:latest"
-        
-      - name: Run Flyway migrations (dev)
+
+  run-flyway-prod:
+    name: Run Flyway migrations (Prod)
+    needs: push-to-prod
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: prod
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    steps:
+      - name: Run Flyway migrations (prod)
         run: |
           docker run --rm \
             -v $(pwd)/src/main/resources/db/migration:/flyway/sql \
@@ -182,22 +259,9 @@ jobs:
               -user="${{ secrets.DB_USER }}" \
               -password="${{ secrets.DB_PASSWORD }}"
 
-      - name: Deploy to Cloud Run (Dev)
-        id: deploy
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: quarkus-playground-dev
-          region: ${{ secrets.GCP_REGION }}
-          image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/images-dev/app:${{ github.sha }}
-          env_vars: |
-            DB_URL=${{ secrets.DB_URL }}
-            DB_USER=${{ secrets.DB_USER }}
-            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-          
-
   terraform-plan-prod:
     name: Terraform Plan Prod
-    needs: deploy-to-dev
+    needs: run-flyway-prod
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     environment: prod
@@ -227,7 +291,7 @@ jobs:
         working-directory: ./infrastructure
         run: |
           terraform workspace select prod
-      - name: 
+      - name:
         working-directory: ./infrastructure
         id: plan
         run: |
@@ -279,69 +343,3 @@ jobs:
         working-directory: ./infrastructure
         run: |
           terraform apply -auto-approve tfplan
-
-  deploy-to-prod:
-    name: Deploy to Prod
-    needs: terraform-apply-prod
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: prod
-    permissions:
-      contents: read
-      packages: write
-      attestations: write
-      id-token: write
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-
-      - name: Download Docker image
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-image
-
-      - name: Load Docker image
-        run: docker load < docker-image.tar
-
-      - name: Authenticate to Google Cloud via Workload Identity Federation
-        uses: google-github-actions/auth@v2
-        with:
-          token_format: access_token
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
-          service_account: "github-pusher-sa-${{ secrets.ENV }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
-          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
-
-      - name: Configure Docker to use gcloud as a credential helper
-        run: |
-          gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
-
-      - name: Push Docker image to Prod Artifact Registry
-        run: |
-          IMAGE_URI="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/images-prod/app"
-          docker tag "app:${{ github.sha }}" "$IMAGE_URI:${{ github.sha }}"
-          docker push "$IMAGE_URI:${{ github.sha }}"
-          
-          docker tag "$IMAGE_URI:${{ github.sha }}" "$IMAGE_URI:latest"
-          docker push "$IMAGE_URI:latest"
-        
-      - name: Run Flyway migrations (prod)
-        run: |
-          docker run --rm \
-            -v $(pwd)/src/main/resources/db/migration:/flyway/sql \
-            flyway/flyway migrate \
-              -url="${{ secrets.DB_URL }}" \
-              -user="${{ secrets.DB_USER }}" \
-              -password="${{ secrets.DB_PASSWORD }}"
-
-      - name: Deploy to Cloud Run (Prod)
-        id: deploy
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: quarkus-playground-dev
-          region: ${{ secrets.GCP_REGION }}
-          image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/images-prod/app:${{ github.sha }}
-          env_vars: |
-            DB_URL=${{ secrets.DB_URL }}
-            DB_USER=${{ secrets.DB_USER }}
-            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
