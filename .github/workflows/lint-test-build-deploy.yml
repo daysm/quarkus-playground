@@ -181,11 +181,6 @@ jobs:
               -url="${{ secrets.DB_URL }}" \
               -user="${{ secrets.DB_USER }}" \
               -password="${{ secrets.DB_PASSWORD }}"
-              
-      - name: Trigger Coolify Dev Deployment
-        run: |
-          curl --request GET "${{ secrets.COOLIFY_DEV_WEBHOOK }}" \
-            --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
 
   terraform-plan-prod:
     name: Terraform Plan Prod
@@ -325,8 +320,3 @@ jobs:
               -url="${{ secrets.DB_URL }}" \
               -user="${{ secrets.DB_USER }}" \
               -password="${{ secrets.DB_PASSWORD }}"
-              
-      - name: Trigger Coolify Prod Deployment
-        run: |
-          curl --request GET "${{ secrets.COOLIFY_PROD_WEBHOOK }}" \
-            --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
