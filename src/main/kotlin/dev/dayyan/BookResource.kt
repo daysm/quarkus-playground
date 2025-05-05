@@ -26,7 +26,7 @@ class BookResource(private val bookRepository: BookRepository) {
     @GET
     @Path("/books")
     @Produces(MediaType.APPLICATION_JSON)
-    fun getBooks(id: Int): Response {
+    fun getBooks(): Response {
         val books = bookRepository.getAll()
         return Response.ok(books).build()
     }

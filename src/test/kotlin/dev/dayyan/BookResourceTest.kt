@@ -43,6 +43,28 @@ class BookResourceTest {
     }
 
     @Test
+    fun `it returns all books`() {
+        val book = Book(title = "Test title")
+        val book2 = Book(title = "Test title 2")
+
+        bookRepository.create(book)
+        bookRepository.create(book2)
+
+        val request =
+            HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:8081/hello/books"))
+                .header("Accept", MediaType.APPLICATION_JSON)
+                .GET()
+                .build()
+
+        val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+
+        assertThat(response.statusCode()).isEqualTo(200)
+        assertThat(response.headers().firstValue("Content-Type").get())
+            .contains(MediaType.APPLICATION_JSON)
+    }
+
+    @Test
     fun testCreateBook() {
         val book = Book(title = "New Book")
         val bookJson = objectMapper.writeValueAsString(book)
