@@ -218,7 +218,7 @@ jobs:
           token_format: access_token
           project_id: ${{ vars.GCP_PROJECT_ID }}
           workload_identity_provider: "projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
-          service_account: "github-pusher-sa-${{ vars.ENV }}@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          service_account: "github-pusher-sa-prod@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
           audience: "https://iam.googleapis.com/projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
 
       - name: Configure Docker to use gcloud as a credential helper
