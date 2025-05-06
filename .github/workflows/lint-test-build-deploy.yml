@@ -45,7 +45,7 @@ jobs:
           path: docker-image.tar
 
   push-to-dev:
-    name: Push image to Dev
+    name: Push image (dev)
     needs: [ lint-test-build ]
     runs-on: ubuntu-latest
     environment: dev
@@ -76,7 +76,7 @@ jobs:
         run: |
           gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
 
-      - name: Push Docker image to Dev Artifact Registry
+      - name: Push Docker image to Artifact Registry (dev)
         run: |
           IMAGE_URI="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/images-${{ secrets.ENV }}/app"
           docker tag "app:${{ github.sha }}" "$IMAGE_URI:${{ github.sha }}"
@@ -86,7 +86,7 @@ jobs:
           docker push "$IMAGE_URI:latest"
 
   terraform-plan-dev:
-    name: Terraform Plan Dev
+    name: Terraform plan (dev)
     needs: push-to-dev
     runs-on: ubuntu-latest
     environment: dev
@@ -111,7 +111,7 @@ jobs:
         working-directory: ./infrastructure
         run: |
           terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
-      - name: Select Dev Workspace
+      - name: Select workspace (dev)
         working-directory: ./infrastructure
         run: |
           terraform workspace select dev
@@ -129,7 +129,7 @@ jobs:
   # On PRs, this job requires approval due to the environment protection rules of the dev-pr environment.
   # Once approved, the following jobs to deploy to dev are run without additional approval.
   approve-deployment-dev:
-    name: Approve Deployment (Dev)
+    name: Approve deployment (dev)
     needs: terraform-plan-dev
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'pull_request' && 'dev-pr' || 'dev' }}
@@ -138,7 +138,7 @@ jobs:
         run: echo 'Approval granted to deploy to Dev from PR.'
 
   run-flyway-dev:
-    name: Run Flyway migrations (Dev)
+    name: Run flyway migrations (dev)
     needs: approve-deployment-dev
     runs-on: ubuntu-latest
     environment: dev
@@ -153,7 +153,7 @@ jobs:
               -password="${{ secrets.DB_PASSWORD }}"
 
   terraform-apply-dev:
-    name: Terraform Apply Dev
+    name: Terraform apply (dev)
     needs: run-flyway-dev
     runs-on: ubuntu-latest
     environment: dev
@@ -183,7 +183,7 @@ jobs:
         working-directory: ./infrastructure
         run: |
           terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
-      - name: Select Dev Workspace
+      - name: Select workspace (dev)
         working-directory: ./infrastructure
         run: |
           terraform workspace select dev
@@ -193,7 +193,7 @@ jobs:
           terraform apply -auto-approve tfplan
 
   push-to-prod:
-    name: Push image to Prod
+    name: Push image (prod)
     needs: terraform-apply-dev
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -225,7 +225,7 @@ jobs:
         run: |
           gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
 
-      - name: Push Docker image to Prod Artifact Registry
+      - name: Push Docker image to Artifact Registry (prod)
         run: |
           IMAGE_URI="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/images-prod/app"
           docker tag "app:${{ github.sha }}" "$IMAGE_URI:${{ github.sha }}"
@@ -235,7 +235,7 @@ jobs:
           docker push "$IMAGE_URI:latest"
 
   run-flyway-prod:
-    name: Run Flyway migrations (Prod)
+    name: Run flyway migrations (prod)
     needs: push-to-prod
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -251,7 +251,7 @@ jobs:
               -password="${{ secrets.DB_PASSWORD }}"
 
   terraform-plan-prod:
-    name: Terraform Plan Prod
+    name: Terraform plan (prod)
     needs: run-flyway-prod
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
@@ -277,7 +277,7 @@ jobs:
         working-directory: ./infrastructure
         run: |
           terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
-      - name: Select Prod Workspace
+      - name: Select workspace (prod)
         working-directory: ./infrastructure
         run: |
           terraform workspace select prod
@@ -293,7 +293,7 @@ jobs:
           path: ./infrastructure/tfplan
 
   terraform-apply-prod:
-    name: Terraform Apply Prod
+    name: Terraform apply (prod)
     needs: terraform-plan-prod
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
@@ -324,7 +324,7 @@ jobs:
         working-directory: ./infrastructure
         run: |
           terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
-      - name: Select Prod Workspace
+      - name: Select workspace (prod)
         working-directory: ./infrastructure
         run: |
           terraform workspace select prod
