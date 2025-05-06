@@ -1,5 +1,6 @@
 package dev.dayyan
 
+import dev.dayyan.auth.ApiKeyProtected
 import dev.dayyan.persistence.Book
 import dev.dayyan.persistence.BookRepository
 import jakarta.ws.rs.Consumes
@@ -15,6 +16,7 @@ import jakarta.ws.rs.core.UriBuilder
 class BookResource(private val bookRepository: BookRepository) {
     @POST
     @Path("/books")
+    @ApiKeyProtected
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     fun addBook(book: Book): Response {

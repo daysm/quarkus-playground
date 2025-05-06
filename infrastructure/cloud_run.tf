@@ -42,6 +42,15 @@ resource "google_cloud_run_v2_service" "default" {
           }
         }
       }
+      env {
+        name = "DEVELOPER_API_KEYS_JSON"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.developer_api_keys.secret_id
+            version = "latest"
+          }
+        }
+      }
     }
     scaling {
       min_instance_count = 0
@@ -54,7 +63,11 @@ resource "google_cloud_run_v2_service" "default" {
 
   depends_on = [
     google_project_service.cloud_run,
-    google_artifact_registry_repository.docker_repo
+    google_artifact_registry_repository.docker_repo,
+    google_secret_manager_secret_iam_member.db_url_accessor,
+    google_secret_manager_secret_iam_member.db_username_accessor,
+    google_secret_manager_secret_iam_member.db_password_accessor,
+    google_secret_manager_secret_iam_member.developer_api_keys_accessor
   ]
 }
 
