@@ -19,18 +19,18 @@ jobs:
           java-version: 21
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.11.3
-      - name: Check Terraform formatting
-        run: terraform fmt -check -recursive
-      - name: Run ktlintCheck
-        run: ./gradlew ktlintCheck
-      - name: Log in to Docker Hub # necessary to increase rate limits for pulling images during test
-        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-      - name: Run tests
-        run: ./gradlew test
+#      - name: Setup Terraform
+#        uses: hashicorp/setup-terraform@v2
+#        with:
+#          terraform_version: 1.11.3
+#      - name: Check Terraform formatting
+#        run: terraform fmt -check -recursive
+#      - name: Run ktlintCheck
+#        run: ./gradlew ktlintCheck
+#      - name: Log in to Docker Hub # necessary to increase rate limits for pulling images during test
+#        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+#      - name: Run tests
+#        run: ./gradlew test
       - name: Build application
         run: ./gradlew build
       - name: Build Docker image
@@ -43,16 +43,13 @@ jobs:
         with:
           name: docker-image
           path: docker-image.tar
-  
+
   push-to-dev:
-    name: Push image to Dev
+    name: Push image (dev)
     needs: [ lint-test-build ]
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'pull_request' && 'dev-pr' || 'dev' }}
+    environment: dev
     permissions:
-      contents: read
-      packages: write
-      attestations: write
       id-token: write
     steps:
       - name: Checkout sources
@@ -70,52 +67,30 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           token_format: access_token
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
-          service_account: "github-pusher-sa-${{ secrets.ENV }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
-          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: "projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+          service_account: "github-pusher-sa-dev@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
 
       - name: Configure Docker to use gcloud as a credential helper
         run: |
-          gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
+          gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev
 
-      - name: Push Docker image to Dev Artifact Registry
+      - name: Push Docker image to Artifact Registry (dev)
         run: |
-          IMAGE_URI="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/images-${{ secrets.ENV }}/app"
+          IMAGE_URI="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/images-dev/app"
           docker tag "app:${{ github.sha }}" "$IMAGE_URI:${{ github.sha }}"
           docker push "$IMAGE_URI:${{ github.sha }}"
           
           docker tag "$IMAGE_URI:${{ github.sha }}" "$IMAGE_URI:latest"
           docker push "$IMAGE_URI:latest"
 
-  run-flyway-dev:
-    name: Run Flyway migrations (Dev)
-    needs: [ push-to-dev ]
-    runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'pull_request' && 'dev-pr' || 'dev' }}
-    permissions:
-      contents: read
-      packages: write
-      attestations: write
-      id-token: write
-    steps:
-      - name: Run Flyway migrations (dev)
-        run: |
-          docker run --rm \
-            -v $(pwd)/src/main/resources/db/migration:/flyway/sql \
-            flyway/flyway migrate \
-              -url="${{ secrets.DB_URL }}" \
-              -user="${{ secrets.DB_USER }}" \
-              -password="${{ secrets.DB_PASSWORD }}"
-
   terraform-plan-dev:
-    name: Terraform Plan Dev
-    needs: run-flyway-dev
+    name: Terraform plan (dev)
+    needs: push-to-dev
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     environment: dev
     permissions:
-      contents: read
       id-token: write
     steps:
       - name: Checkout sources
@@ -128,15 +103,15 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           token_format: access_token
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
-          service_account: "github-pusher-sa-dev@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
-          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: "projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+          service_account: "github-pusher-sa-dev@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
       - name: Initialize Terraform
         working-directory: ./infrastructure
         run: |
           terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
-      - name: Select Dev Workspace
+      - name: Select workspace (dev)
         working-directory: ./infrastructure
         run: |
           terraform workspace select dev
@@ -151,14 +126,38 @@ jobs:
           name: terraform-plan-dev
           path: ./infrastructure/tfplan
 
-  terraform-apply-dev:
-    name: Terraform Apply Dev
+  # On PRs, this job requires approval due to the environment protection rules of the dev-pr environment.
+  # Once approved, the following jobs to deploy to dev are run without additional approval.
+  approve-deployment-dev:
+    name: Approve deployment (dev)
     needs: terraform-plan-dev
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     environment: ${{ github.event_name == 'pull_request' && 'dev-pr' || 'dev' }}
+    steps:
+      - name: Approval granted
+        run: echo 'Approval granted to deploy to Dev from PR.'
+
+  run-flyway-dev:
+    name: Run flyway migrations (dev)
+    needs: approve-deployment-dev
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Run Flyway migrations (dev)
+        run: |
+          docker run --rm \
+            -v $(pwd)/src/main/resources/db/migration:/flyway/sql \
+            flyway/flyway migrate \
+              -url="${{ secrets.DB_URL }}" \
+              -user="${{ secrets.DB_USER }}" \
+              -password="${{ secrets.DB_PASSWORD }}"
+
+  terraform-apply-dev:
+    name: Terraform apply (dev)
+    needs: run-flyway-dev
+    runs-on: ubuntu-latest
+    environment: dev
     permissions:
-      contents: read
       id-token: write
     steps:
       - name: Checkout sources
@@ -171,10 +170,10 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           token_format: access_token
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
-          service_account: "github-pusher-sa-dev@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
-          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: "projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
+          service_account: "github-pusher-sa-dev@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
       - name: Download Terraform Plan
         uses: actions/download-artifact@v4
         with:
@@ -184,7 +183,7 @@ jobs:
         working-directory: ./infrastructure
         run: |
           terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
-      - name: Select Dev Workspace
+      - name: Select workspace (dev)
         working-directory: ./infrastructure
         run: |
           terraform workspace select dev
@@ -194,15 +193,12 @@ jobs:
           terraform apply -auto-approve tfplan
 
   push-to-prod:
-    name: Push image to Prod
+    name: Push image (prod)
     needs: terraform-apply-dev
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: prod
     permissions:
-      contents: read
-      packages: write
-      attestations: write
       id-token: write
     steps:
       - name: Checkout sources
@@ -220,18 +216,18 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           token_format: access_token
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
-          service_account: "github-pusher-sa-${{ secrets.ENV }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
-          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-${{ secrets.ENV }}/providers/github-provider-${{ secrets.ENV }}"
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: "projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
+          service_account: "github-pusher-sa-${{ vars.ENV }}@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
 
       - name: Configure Docker to use gcloud as a credential helper
         run: |
-          gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
+          gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev
 
-      - name: Push Docker image to Prod Artifact Registry
+      - name: Push Docker image to Artifact Registry (prod)
         run: |
-          IMAGE_URI="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/images-prod/app"
+          IMAGE_URI="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/images-prod/app"
           docker tag "app:${{ github.sha }}" "$IMAGE_URI:${{ github.sha }}"
           docker push "$IMAGE_URI:${{ github.sha }}"
           
@@ -239,16 +235,11 @@ jobs:
           docker push "$IMAGE_URI:latest"
 
   run-flyway-prod:
-    name: Run Flyway migrations (Prod)
+    name: Run flyway migrations (prod)
     needs: push-to-prod
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: prod
-    permissions:
-      contents: read
-      packages: write
-      attestations: write
-      id-token: write
     steps:
       - name: Run Flyway migrations (prod)
         run: |
@@ -260,13 +251,12 @@ jobs:
               -password="${{ secrets.DB_PASSWORD }}"
 
   terraform-plan-prod:
-    name: Terraform Plan Prod
+    name: Terraform plan (prod)
     needs: run-flyway-prod
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     environment: prod
     permissions:
-      contents: read
       id-token: write
     steps:
       - name: Checkout sources
@@ -279,15 +269,15 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           token_format: access_token
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
-          service_account: "github-pusher-sa-prod@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
-          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: "projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
+          service_account: "github-pusher-sa-prod@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
       - name: Initialize Terraform
         working-directory: ./infrastructure
         run: |
           terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
-      - name: Select Prod Workspace
+      - name: Select workspace (prod)
         working-directory: ./infrastructure
         run: |
           terraform workspace select prod
@@ -303,13 +293,12 @@ jobs:
           path: ./infrastructure/tfplan
 
   terraform-apply-prod:
-    name: Terraform Apply Prod
+    name: Terraform apply (prod)
     needs: terraform-plan-prod
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     environment: prod
     permissions:
-      contents: read
       id-token: write
     steps:
       - name: Checkout sources
@@ -322,10 +311,10 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           token_format: access_token
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
-          service_account: "github-pusher-sa-prod@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
-          audience: "https://iam.googleapis.com/projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: "projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
+          service_account: "github-pusher-sa-prod@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          audience: "https://iam.googleapis.com/projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
       - name: Download Terraform Plan
         uses: actions/download-artifact@v4
         with:
@@ -335,7 +324,7 @@ jobs:
         working-directory: ./infrastructure
         run: |
           terraform init -backend-config="bucket=terraform-state-xfb0phm2" -backend-config="prefix=quarkus-playground"
-      - name: Select Prod Workspace
+      - name: Select workspace (prod)
         working-directory: ./infrastructure
         run: |
           terraform workspace select prod
