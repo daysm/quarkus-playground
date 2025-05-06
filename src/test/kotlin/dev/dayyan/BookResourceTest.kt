@@ -20,6 +20,7 @@ class BookResourceTest {
 
     private val client = HttpClient.newHttpClient()
     private val objectMapper = ObjectMapper()
+    private val testApiKey = "sk-test-secret-key-123"
 
     @Test
     fun testGetBookFound() {
@@ -74,6 +75,7 @@ class BookResourceTest {
                 .uri(URI.create("http://localhost:8081/hello/books"))
                 .header("Accept", MediaType.APPLICATION_JSON)
                 .header("Content-Type", MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer $testApiKey")
                 .POST(HttpRequest.BodyPublishers.ofString(bookJson))
                 .build()
 
