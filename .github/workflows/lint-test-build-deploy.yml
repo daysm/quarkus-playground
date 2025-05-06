@@ -19,18 +19,18 @@ jobs:
           java-version: 21
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-#      - name: Setup Terraform
-#        uses: hashicorp/setup-terraform@v2
-#        with:
-#          terraform_version: 1.11.3
-#      - name: Check Terraform formatting
-#        run: terraform fmt -check -recursive
-#      - name: Run ktlintCheck
-#        run: ./gradlew ktlintCheck
-#      - name: Log in to Docker Hub # necessary to increase rate limits for pulling images during test
-#        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-#      - name: Run tests
-#        run: ./gradlew test
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.11.3
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive
+      - name: Run ktlintCheck
+        run: ./gradlew ktlintCheck
+      - name: Log in to Docker Hub # necessary to increase rate limits for pulling images during test
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+      - name: Run tests
+        run: ./gradlew test
       - name: Build application
         run: ./gradlew build
       - name: Build Docker image
@@ -218,7 +218,7 @@ jobs:
           token_format: access_token
           project_id: ${{ vars.GCP_PROJECT_ID }}
           workload_identity_provider: "projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
-          service_account: "github-pusher-sa-${{ vars.ENV }}@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          service_account: "github-pusher-sa-prod@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
           audience: "https://iam.googleapis.com/projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
 
       - name: Configure Docker to use gcloud as a credential helper
