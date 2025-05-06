@@ -85,35 +85,9 @@ jobs:
           docker tag "$IMAGE_URI:${{ github.sha }}" "$IMAGE_URI:latest"
           docker push "$IMAGE_URI:latest"
 
-  # On PRs, this job requires approval due to the environment protection rules of the dev-pr environment.
-  # Once approved, the following jobs to deploy to dev are run without additional approval.
-  approve-deployment-dev:
-    name: Approve Deployment (Dev)
-    needs: push-to-dev
-    runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'pull_request' && 'dev-pr' || 'dev' }}
-    steps:
-      - name: Approval granted
-        run: echo 'Approval granted to deploy to Dev from PR.'
-
-  run-flyway-dev:
-    name: Run Flyway migrations (Dev)
-    needs: approve-deployment-dev
-    runs-on: ubuntu-latest
-    environment: dev
-    steps:
-      - name: Run Flyway migrations (dev)
-        run: |
-          docker run --rm \
-            -v $(pwd)/src/main/resources/db/migration:/flyway/sql \
-            flyway/flyway migrate \
-              -url="${{ secrets.DB_URL }}" \
-              -user="${{ secrets.DB_USER }}" \
-              -password="${{ secrets.DB_PASSWORD }}"
-
   terraform-plan-dev:
     name: Terraform Plan Dev
-    needs: run-flyway-dev
+    needs: push-to-dev
     runs-on: ubuntu-latest
     environment: dev
     permissions:
@@ -152,9 +126,35 @@ jobs:
           name: terraform-plan-dev
           path: ./infrastructure/tfplan
 
+  # On PRs, this job requires approval due to the environment protection rules of the dev-pr environment.
+  # Once approved, the following jobs to deploy to dev are run without additional approval.
+  approve-deployment-dev:
+    name: Approve Deployment (Dev)
+    needs: terraform-plan-dev
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'pull_request' && 'dev-pr' || 'dev' }}
+    steps:
+      - name: Approval granted
+        run: echo 'Approval granted to deploy to Dev from PR.'
+
+  run-flyway-dev:
+    name: Run Flyway migrations (Dev)
+    needs: approve-deployment-dev
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Run Flyway migrations (dev)
+        run: |
+          docker run --rm \
+            -v $(pwd)/src/main/resources/db/migration:/flyway/sql \
+            flyway/flyway migrate \
+              -url="${{ secrets.DB_URL }}" \
+              -user="${{ secrets.DB_USER }}" \
+              -password="${{ secrets.DB_PASSWORD }}"
+
   terraform-apply-dev:
     name: Terraform Apply Dev
-    needs: terraform-plan-dev
+    needs: run-flyway-dev
     runs-on: ubuntu-latest
     environment: dev
     permissions:
