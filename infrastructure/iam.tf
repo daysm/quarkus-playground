@@ -84,3 +84,9 @@ resource "google_secret_manager_secret_iam_member" "db_password_accessor" {
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.cloud_run_sa.email}"
 }
+
+resource "google_secret_manager_secret_iam_member" "developer_api_keys_accessor" {
+  secret_id = google_secret_manager_secret.developer_api_keys.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+}
