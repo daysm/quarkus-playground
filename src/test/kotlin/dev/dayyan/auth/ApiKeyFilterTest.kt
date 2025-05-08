@@ -12,16 +12,15 @@ import org.junit.jupiter.api.Test
 import java.net.URI
 
 class ApiKeyFilterTest {
-    private val apiKeyFilter = ApiKeyFilter()
     private val objectMapper: ObjectMapper = ObjectMapper()
     private val requestContext: ContainerRequestContext = mockk(relaxed = true)
     private val uriInfo: UriInfo = mockk()
     private val validApiKey = "test-key-123"
+    private val configuredApiKeysJson = """{"$validApiKey":"Test API Key Description"}"""
+    private val apiKeyFilter = ApiKeyFilter(objectMapper, configuredApiKeysJson)
 
     @BeforeEach
     fun setUp() {
-        apiKeyFilter.configuredApiKeysJson = """{"$validApiKey":"Test API Key Description"}"""
-        apiKeyFilter.objectMapper = objectMapper
         apiKeyFilter.init()
 
         every { requestContext.uriInfo } returns uriInfo
