@@ -17,21 +17,21 @@ val quarkusPlatformArtifactId: String by project
 val quarkusPlatformVersion: String by project
 
 dependencies {
-    implementation("io.quarkus:quarkus-jdbc-postgresql")
-    implementation("io.quarkus:quarkus-flyway")
+    implementation("io.quarkus:quarkus-jdbc-postgresql:3.19.2")
+    implementation("io.quarkus:quarkus-flyway:3.19.2")
     implementation("org.jooq:jooq:3.20.1")
     implementation(enforcedPlatform("$quarkusPlatformGroupId:$quarkusPlatformArtifactId:$quarkusPlatformVersion"))
-    implementation("io.quarkus:quarkus-rest")
-    implementation("io.quarkus:quarkus-kotlin")
-    implementation("io.quarkus:quarkus-rest-jackson")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
-    implementation("io.quarkus:quarkus-arc")
+    implementation("io.quarkus:quarkus-rest:3.19.2")
+    implementation("io.quarkus:quarkus-kotlin:3.19.2")
+    implementation("io.quarkus:quarkus-rest-jackson:3.19.12")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.21")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.2")
 
     jooqCodegen("org.jooq:jooq-meta-extensions:3.20.1")
 
-    testImplementation("io.quarkus:quarkus-junit5")
-    testImplementation("io.rest-assured:rest-assured")
+    testImplementation("io.quarkus:quarkus-junit5:3.19.2")
     testImplementation("org.assertj:assertj-core:3.27.3")
+    testImplementation("io.mockk:mockk:1.13.10")
 }
 
 group = "dev.dayyan"
