@@ -21,8 +21,6 @@ class ApiKeyFilterTest {
 
     @BeforeEach
     fun setUp() {
-        apiKeyFilter.init()
-
         every { requestContext.uriInfo } returns uriInfo
         every { uriInfo.path } returns "/api/protected/resource"
         every { uriInfo.requestUri } returns URI.create("http://localhost/api/protected/resource")
