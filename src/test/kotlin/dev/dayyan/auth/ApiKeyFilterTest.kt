@@ -12,40 +12,41 @@ import org.junit.jupiter.api.Test
 import java.net.URI
 
 class ApiKeyFilterTest {
-    private val objectMapper: ObjectMapper = ObjectMapper()
     private val requestContext: ContainerRequestContext = mockk(relaxed = true)
     private val uriInfo: UriInfo = mockk()
     private val validApiKey = "test-key-123"
+    private val path = "example/path"
+    private val objectMapper: ObjectMapper = ObjectMapper()
     private val configuredApiKeysJson = """{"$validApiKey":"Test API Key Description"}"""
-    private val apiKeyFilter = ApiKeyFilter(objectMapper, configuredApiKeysJson)
+    private val sut = ApiKeyFilter(objectMapper, configuredApiKeysJson)
 
     @BeforeEach
     fun setUp() {
         every { requestContext.uriInfo } returns uriInfo
-        every { uriInfo.path } returns "/api/protected/resource"
-        every { uriInfo.requestUri } returns URI.create("http://localhost/api/protected/resource")
+        every { uriInfo.path } returns path
+        every { uriInfo.requestUri } returns URI.create("http://localhost/$path")
         every { requestContext.getHeaderString("X-Forwarded-For") } returns null
     }
 
     @Test
-    fun `it allows access when a valid API key is provided`() {
+    fun `it does not abort when a valid API key is provided`() {
         every { requestContext.getHeaderString(HttpHeaders.AUTHORIZATION) } returns "Bearer $validApiKey"
-        apiKeyFilter.filter(requestContext)
+        sut.filter(requestContext)
         verify(exactly = 0) { requestContext.abortWith(any()) }
     }
 
     @Test
-    fun `it blocks access when no valid API key is provided`() {
+    fun `it aborts when no valid API key is provided`() {
         val invalidApiKey = "invalid-key"
         every { requestContext.getHeaderString(HttpHeaders.AUTHORIZATION) } returns "Bearer $invalidApiKey"
-        apiKeyFilter.filter(requestContext)
+        sut.filter(requestContext)
         verify { requestContext.abortWith(any()) }
     }
 
     @Test
-    fun `it blocks access when no authorization header is set`() {
+    fun `it aborts when no authorization header is set`() {
         every { requestContext.getHeaderString(HttpHeaders.AUTHORIZATION) } returns null
-        apiKeyFilter.filter(requestContext)
+        sut.filter(requestContext)
         verify { requestContext.abortWith(any()) }
     }
 }
