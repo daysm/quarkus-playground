@@ -69,7 +69,7 @@ jobs:
           token_format: access_token
           project_id: ${{ vars.GCP_PROJECT_ID }}
           workload_identity_provider: "projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
-          service_account: "github-pusher-sa-dev@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          service_account: "github-sa-dev@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
           audience: "https://iam.googleapis.com/projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
 
       - name: Configure Docker to use gcloud as a credential helper
@@ -105,7 +105,7 @@ jobs:
           token_format: access_token
           project_id: ${{ vars.GCP_PROJECT_ID }}
           workload_identity_provider: "projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
-          service_account: "github-pusher-sa-dev@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          service_account: "github-sa-dev@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
           audience: "https://iam.googleapis.com/projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
       - name: Initialize Terraform
         working-directory: ./infrastructure
@@ -172,7 +172,7 @@ jobs:
           token_format: access_token
           project_id: ${{ vars.GCP_PROJECT_ID }}
           workload_identity_provider: "projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
-          service_account: "github-pusher-sa-dev@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          service_account: "github-sa-dev@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
           audience: "https://iam.googleapis.com/projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-dev/providers/github-provider-dev"
       - name: Download Terraform Plan
         uses: actions/download-artifact@v4
@@ -218,7 +218,7 @@ jobs:
           token_format: access_token
           project_id: ${{ vars.GCP_PROJECT_ID }}
           workload_identity_provider: "projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
-          service_account: "github-pusher-sa-prod@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          service_account: "github-sa-prod@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
           audience: "https://iam.googleapis.com/projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
 
       - name: Configure Docker to use gcloud as a credential helper
@@ -271,7 +271,7 @@ jobs:
           token_format: access_token
           project_id: ${{ vars.GCP_PROJECT_ID }}
           workload_identity_provider: "projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
-          service_account: "github-pusher-sa-prod@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          service_account: "github-sa-prod@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
           audience: "https://iam.googleapis.com/projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
       - name: Initialize Terraform
         working-directory: ./infrastructure
@@ -313,7 +313,7 @@ jobs:
           token_format: access_token
           project_id: ${{ vars.GCP_PROJECT_ID }}
           workload_identity_provider: "projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
-          service_account: "github-pusher-sa-prod@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          service_account: "github-sa-prod@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
           audience: "https://iam.googleapis.com/projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-identity-pool-prod/providers/github-provider-prod"
       - name: Download Terraform Plan
         uses: actions/download-artifact@v4

@@ -24,10 +24,10 @@ resource "google_iam_workload_identity_pool_provider" "github_provider" {
   attribute_condition = "attribute.repository == \"${var.git_repository}\""
 }
 
-resource "google_service_account" "github_pusher_sa" {
+resource "google_service_account" "github_sa" {
   project      = var.gcp_project_id
-  account_id   = "github-pusher-sa-${var.env}"
-  display_name = "Service account for GitHub Actions pushing to Artifact Registry (${var.env})"
+  account_id   = "github-sa-${var.env}"
+  display_name = "Service account for GitHub Actions"
 }
 
 resource "google_project_iam_member" "github_sa_permissions" {
@@ -46,11 +46,11 @@ resource "google_project_iam_member" "github_sa_permissions" {
 
   project = var.gcp_project_id
   role    = each.key
-  member  = "serviceAccount:${google_service_account.github_pusher_sa.email}"
+  member  = "serviceAccount:${google_service_account.github_sa.email}"
 }
 
 resource "google_service_account_iam_member" "github_identity_binding" {
-  service_account_id = google_service_account.github_pusher_sa.name
+  service_account_id = google_service_account.github_sa.name
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_pool.name}/attribute.repository/${var.git_repository}"
 }
@@ -58,13 +58,13 @@ resource "google_service_account_iam_member" "github_identity_binding" {
 resource "google_storage_bucket_iam_member" "terraform_state_access" {
   bucket = "terraform-state-xfb0phm2"
   role   = "roles/storage.admin"
-  member = "serviceAccount:${google_service_account.github_pusher_sa.email}"
+  member = "serviceAccount:${google_service_account.github_sa.email}"
 }
 
 resource "google_storage_bucket_iam_member" "terraform_state_list_access" {
   bucket = "terraform-state-xfb0phm2"
   role   = "roles/storage.objectViewer"
-  member = "serviceAccount:${google_service_account.github_pusher_sa.email}"
+  member = "serviceAccount:${google_service_account.github_sa.email}"
 }
 
 resource "google_secret_manager_secret_iam_member" "db_url_accessor" {
