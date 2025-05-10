@@ -5,7 +5,7 @@ output "workload_identity_provider_id" {
 
 output "service_account_email" {
   description = "The email of the Service Account for GitHub Actions"
-  value       = google_service_account.github_pusher_sa.email
+  value       = google_service_account.github_sa.email
 }
 
 output "github_principal_set" {
