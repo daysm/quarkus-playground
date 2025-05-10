@@ -35,7 +35,7 @@ resource "google_project_iam_member" "github_sa_permissions" {
     "roles/serviceusage.serviceUsageAdmin",
     "roles/iam.serviceAccountUser",
     "roles/iam.workloadIdentityUser",
-    "roles/artifactregistry.writer",
+    "roles/artifactregistry.admin",
     "roles/iam.securityAdmin",
     "roles/resourcemanager.projectIamAdmin",
     "roles/iam.workloadIdentityPoolAdmin",
